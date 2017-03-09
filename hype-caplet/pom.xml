@@ -87,42 +87,6 @@
                   </manifestEntries>
                 </transformer>
               </transformers>
-              <relocations>
-                <relocation>
-                  <pattern>org</pattern>
-                  <shadedPattern>capsule.org</shadedPattern>
-                </relocation>
-                <relocation>
-                  <pattern>com</pattern>
-                  <shadedPattern>capsule.com</shadedPattern>
-                  <includes><include>*</include></includes>
-                </relocation>
-                <relocation>
-                  <pattern>io</pattern>
-                  <shadedPattern>capsule.io</shadedPattern>
-                  <includes><include>*</include></includes>
-                </relocation>
-                <relocation>
-                  <pattern>autovalue</pattern>
-                  <shadedPattern>capsule.autovalue</shadedPattern>
-                  <includes><include>*</include></includes>
-                </relocation>
-                <relocation>
-                  <pattern>co</pattern>
-                  <shadedPattern>capsule.co</shadedPattern>
-                  <includes><include>*</include></includes>
-                </relocation>
-                <relocation>
-                  <pattern>google</pattern>
-                  <shadedPattern>capsule.google</shadedPattern>
-                  <includes><include>*</include></includes>
-                </relocation>
-                <relocation>
-                  <pattern>javax</pattern>
-                  <shadedPattern>capsule.javax</shadedPattern>
-                  <includes><include>*</include></includes>
-                </relocation>
-              </relocations>
             </configuration>
           </execution>
         </executions>

@@ -89,11 +89,7 @@ public class Hypelet extends Capsule {
       final List<String> stubArgs = new ArrayList<>(args.size());
       stubArgs.add(stagingDir.toString());
       stubArgs.addAll(args.subList(1, args.size()));
-      final ProcessBuilder processBuilder = super.prelaunch(jvmArgs, stubArgs);
-
-      System.out.println("processBuilder.command() = " + processBuilder.command());
-
-      return processBuilder;
+      return super.prelaunch(jvmArgs, stubArgs);
     } catch (Throwable e) {
       throw Throwables.propagate(e);
     }
