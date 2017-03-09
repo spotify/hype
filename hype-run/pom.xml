@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>com.spotify</groupId>
+    <artifactId>hype-root</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+  </parent>
+
+  <artifactId>hype-run</artifactId>
+  <version>0.0.1-SNAPSHOT</version>
+
+  <dependencies>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>com.github.chrisdchristo</groupId>
+        <artifactId>capsule-maven-plugin</artifactId>
+        <version>1.5.0</version>
+        <configuration>
+          <appClass>com.spotify.hype.stub.ContinuationEntryPoint</appClass>
+          <caplets>com.spotify:hype-caplet:${project.version}</caplets>
+          <type>thin</type>
+          <manifest>
+            <entry>
+              <key>Allow-Snapshots</key>
+              <value>true</value>
+            </entry>
+            <entry>
+              <key>Repositories</key>
+              <value>central local</value>
+            </entry>
+          </manifest>
+        </configuration>
+        <executions>
+          <execution>
+            <phase>package</phase>
+            <goals>
+              <goal>build</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+
+</project>

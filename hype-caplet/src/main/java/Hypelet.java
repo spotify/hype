@@ -1,6 +1,6 @@
 /*-
  * -\-\-
- * hype-submitter
+ * hype-run
  * --
  * Copyright (C) 2016 - 2017 Spotify AB
  * --
@@ -18,16 +18,12 @@
  * -/-/-
  */
 
-package com.spotify.hype.stub;
-
 import static com.google.cloud.storage.Storage.BlobListOption.prefix;
 
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageOptions;
 import com.google.common.base.Throwables;
-import com.spotify.hype.Fn;
-import com.spotify.hype.Submitter;
 import java.io.BufferedOutputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -43,58 +39,74 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ForkJoinPool;
 
 /**
  * TODO: document.
  */
-public class ContinuationEntryPoint {
+public class Hypelet extends Capsule {
 
-  private static final String STAGING_PREFIX = ".tmp";
+  private static final String STAGING_PREFIX = "hype-run-";
   private static final ForkJoinPool FJP = new ForkJoinPool(16);
 
-  /**
-   * todo: specify working directory
-   *
-   * @param args
-   */
-  public static void main(String[] args)
-      throws IOException, ExecutionException, InterruptedException {
+  private final List<Path> downloadedJars = new ArrayList<>();
 
-    if (args.length < 1) {
-      throw new IllegalArgumentException("Usage: <continuation-file>");
-    }
-
-    final Storage storage = StorageOptions.getDefaultInstance().getService();
-
-    final Path continuationPath = Paths.get(args[0]);
-    if (!Files.exists(continuationPath)) {
-      throw new IllegalArgumentException(continuationPath + " does not exist");
-    }
-    final Fn<?> continuation = Submitter.readContinuation(continuationPath);
-
-    Object returnValue;
-    try {
-      returnValue = continuation.run();
-    } catch (Throwable e) {
-      e.printStackTrace();
-      throw e;
-    }
-
-    final Path returnValuePath = Submitter.serializeReturnValue(returnValue);
-    System.out.println("returnValuePath = " + returnValuePath);
+  public Hypelet(Capsule pred) {
+    super(pred);
   }
 
-  private static void downloadFiles(Storage storage, URI stagingPrefix)
+  @Override
+  protected Object lookup0(Object x, String type,
+                           Map.Entry<String, ?> attrContext,
+                           Object context) {
+    final Object o = super.lookup0(x, type, attrContext, context);
+    if ("App-Class-Path".equals(attrContext.getKey())) {
+      final List<Path> lookup = new ArrayList<>((List<Path>) o);
+      lookup.addAll(downloadedJars);
+      return lookup;
+    }
+    return o;
+  }
+
+  @Override
+  protected ProcessBuilder prelaunch(List<String> jvmArgs, List<String> args) {
+    if (args.size() < 2) {
+      throw new IllegalArgumentException("Usage: <gcs-staging-uri> <continuation-file>");
+    }
+
+    try {
+      final Storage storage = StorageOptions.getDefaultInstance().getService();
+      final URI stagingPrefix = URI.create(args.get(0));
+      final Path stagingDir = Files.createTempDirectory(STAGING_PREFIX);
+      try {
+        downloadFiles(storage, stagingPrefix, stagingDir);
+      } catch (IOException | ExecutionException | InterruptedException e) {
+        throw Throwables.propagate(e);
+      }
+
+      final List<String> stubArgs = new ArrayList<>(args.size());
+      stubArgs.add(stagingDir.toString());
+      stubArgs.addAll(args.subList(1, args.size()));
+      final ProcessBuilder processBuilder = super.prelaunch(jvmArgs, stubArgs);
+
+      System.out.println("processBuilder.command() = " + processBuilder.command());
+
+      return processBuilder;
+    } catch (Throwable e) {
+      throw Throwables.propagate(e);
+    }
+  }
+
+  private void downloadFiles(Storage storage, URI stagingPrefix, Path temp)
       throws IOException, ExecutionException, InterruptedException {
 
     if (!"gs".equals(stagingPrefix.getScheme())) {
       throw new IllegalArgumentException("Staging prefix must be a gs:// uri");
     }
 
-    System.out.println("Downloading staging files from " + stagingPrefix);
-    Files.createDirectories(Paths.get(STAGING_PREFIX));
+    System.out.println("Downloading staging files from " + stagingPrefix + " -> " + temp);
 
     final String bucket =  stagingPrefix.getAuthority();
     final String prefix = stagingPrefix.getPath().substring(1); // remove leading '/'
@@ -107,19 +119,24 @@ public class ContinuationEntryPoint {
     }
 
     FJP.submit(
-      () -> stagedFiles.parallelStream()
-          .forEach(ContinuationEntryPoint::downloadFile))
-      .get();
+        () -> stagedFiles.parallelStream()
+            .forEach(blob -> downloadFile(blob, temp)))
+        .get();
 
     System.out.println("Done");
   }
 
-  private static void downloadFile(Blob blob) {
+  private void downloadFile(Blob blob, Path temp) {
     final String localFileName = Paths.get(blob.getName()).getFileName().toString();
-    final String localFilePath = Paths.get(STAGING_PREFIX, localFileName).toString();
-    System.out.println("... downloading blob " + blob.getName() + " -> " + localFilePath);
+    final Path localFilePath = temp.resolve(localFileName);
 
-    try (OutputStream bos = new BufferedOutputStream(new FileOutputStream(localFilePath))) {
+    System.out.println("... downloading blob " + blob.getName());
+    if (localFilePath.getFileName().toString().endsWith(".jar")) {
+      System.out.println("  ` adding to classpath");
+      downloadedJars.add(localFilePath);
+    }
+
+    try (OutputStream bos = new BufferedOutputStream(new FileOutputStream(localFilePath.toFile()))) {
       try (ReadableByteChannel reader = blob.reader()) {
         final WritableByteChannel writer = Channels.newChannel(bos);
         final ByteBuffer buffer = ByteBuffer.allocate(8192);

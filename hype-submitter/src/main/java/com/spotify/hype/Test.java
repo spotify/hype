@@ -22,12 +22,19 @@ package com.spotify.hype;
 
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageOptions;
+import com.google.common.base.Throwables;
+import com.spotify.hype.util.Fn;
+import com.spotify.hype.util.SerializationUtil;
+import io.rouz.flo.Task;
+import io.rouz.flo.TaskContext;
 import java.net.URI;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -44,12 +51,26 @@ public class Test {
         .map(entry -> Paths.get(URI.create(entry.getUrl())).toAbsolutePath().toString())
         .collect(Collectors.toList());
 
+    final Task<String> task = Task.named("foo").ofType(String.class)
+        .process(() -> "hello");
+
     Fn<?> fn = () -> {
       files.forEach(file -> System.out.println("running in continuation " + file));
-      return "foo";
+
+      CompletableFuture<String> future = new CompletableFuture<>();
+      TaskContext.inmem().evaluate(task).consume(future::complete);
+      final String value;
+      try {
+        value = future.get();
+      } catch (InterruptedException | ExecutionException e) {
+        throw Throwables.propagate(e);
+      }
+
+      System.out.println("value = " + value);
+      return value;
     };
 
-    final Path continuationPath = Submitter.serializeContinuation(fn);
+    final Path continuationPath = SerializationUtil.serializeContinuation(fn);
     files.add(continuationPath.toAbsolutePath().toString());
 
     URI stagedLocation = submitter.stageFiles(files);

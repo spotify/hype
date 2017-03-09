@@ -29,17 +29,12 @@ import com.google.cloud.storage.Storage;
 import com.google.common.base.Throwables;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.io.UnsupportedEncodingException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 import java.util.Objects;
@@ -55,10 +50,6 @@ import org.slf4j.LoggerFactory;
 public class Submitter {
 
   private static final Logger LOG = LoggerFactory.getLogger(Submitter.class);
-
-  private static final String CONT_FILE = "continuation-";
-  private static final String RET_FILE = "return-";
-  private static final String SER = ".ser";
 
   private static final String GCS_STAGING_PREFIX = "spotify-hype-staging";
   private static final String APPLICATION_OCTET_STREAM = "application/octet-stream";
@@ -90,18 +81,6 @@ public class Submitter {
     } catch (URISyntaxException e) {
       throw Throwables.propagate(e);
     }
-  }
-
-  public static Path serializeContinuation(Fn<?> continuation) {
-    return serializeObject(continuation, CONT_FILE);
-  }
-
-  public static Path serializeReturnValue(Object value) {
-    return serializeObject(value, RET_FILE);
-  }
-
-  public static Fn<?> readContinuation(Path continuationPath) {
-    return (Fn<?>) readObject(continuationPath);
   }
 
   private static String encodePart(String part) {
@@ -142,30 +121,6 @@ public class Submitter {
 
       return new URI("gs", blob.getBucket(), "/" + blob.getName(), null).toString();
     } catch (URISyntaxException | IOException e) {
-      throw Throwables.propagate(e);
-    }
-  }
-
-  private static Path serializeObject(Object obj, String filePrefix) {
-    try {
-      final Path stateFilePath = Files.createTempFile(filePrefix, SER);
-      final File file = stateFilePath.toFile();
-      try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(file))) {
-        oos.writeObject(obj);
-      }
-      return stateFilePath;
-    } catch (IOException e) {
-      e.printStackTrace();
-      throw Throwables.propagate(e);
-    }
-  }
-
-  private static Object readObject(Path continuationPath) {
-    File file = continuationPath.toFile();
-    try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(file))) {
-      return ois.readObject();
-    } catch (IOException | ClassNotFoundException e) {
-      e.printStackTrace();
       throw Throwables.propagate(e);
     }
   }

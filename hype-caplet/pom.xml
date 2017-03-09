@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <!--
+    This can not have a parent since it will cause the Maven Caplet to resolve multiple
+    artifacts and error out
+    -->
+  <!--<parent>-->
+    <!--<artifactId>hype-root</artifactId>-->
+    <!--<groupId>com.spotify</groupId>-->
+    <!--<version>0.0.1-SNAPSHOT</version>-->
+  <!--</parent>-->
+
+  <groupId>com.spotify</groupId>
+  <artifactId>hype-caplet</artifactId>
+  <version>0.0.1-SNAPSHOT</version>
+
+  <properties>
+    <gcloud.version>0.9.4-beta</gcloud.version>
+    <capsule.version>1.0.3</capsule.version>
+  </properties>
+
+  <dependencies>
+    <dependency>
+      <groupId>com.google.cloud</groupId>
+      <artifactId>google-cloud-storage</artifactId>
+      <version>${gcloud.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>co.paralleluniverse</groupId>
+      <artifactId>capsule</artifactId>
+      <version>${capsule.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>co.paralleluniverse</groupId>
+      <artifactId>capsule-util</artifactId>
+      <version>${capsule.version}</version>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>3.5.1</version>
+        <configuration>
+          <source>1.8</source>
+          <target>1.8</target>
+          <compilerArgs>
+            <compilerArg>-Xlint:all</compilerArg>
+          </compilerArgs>
+        </configuration>
+      </plugin>
+
+      <plugin>
+        <artifactId>maven-jar-plugin</artifactId>
+        <version>3.0.2</version>
+        <configuration>
+          <archive>
+            <manifest>
+              <addDefaultImplementationEntries>true</addDefaultImplementationEntries>
+              <addDefaultSpecificationEntries>true</addDefaultSpecificationEntries>
+            </manifest>
+          </archive>
+        </configuration>
+      </plugin>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-shade-plugin</artifactId>
+        <version>3.0.0</version>
+        <executions>
+          <execution>
+            <phase>package</phase>
+            <goals>
+              <goal>shade</goal>
+            </goals>
+            <configuration>
+              <transformers>
+                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                  <manifestEntries>
+                    <Main-Class>Capsule</Main-Class>
+                    <Caplets>Hypelet</Caplets>
+                  </manifestEntries>
+                </transformer>
+              </transformers>
+              <relocations>
+                <relocation>
+                  <pattern>org</pattern>
+                  <shadedPattern>capsule.org</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>com</pattern>
+                  <shadedPattern>capsule.com</shadedPattern>
+                  <includes><include>*</include></includes>
+                </relocation>
+                <relocation>
+                  <pattern>io</pattern>
+                  <shadedPattern>capsule.io</shadedPattern>
+                  <includes><include>*</include></includes>
+                </relocation>
+                <relocation>
+                  <pattern>autovalue</pattern>
+                  <shadedPattern>capsule.autovalue</shadedPattern>
+                  <includes><include>*</include></includes>
+                </relocation>
+                <relocation>
+                  <pattern>co</pattern>
+                  <shadedPattern>capsule.co</shadedPattern>
+                  <includes><include>*</include></includes>
+                </relocation>
+                <relocation>
+                  <pattern>google</pattern>
+                  <shadedPattern>capsule.google</shadedPattern>
+                  <includes><include>*</include></includes>
+                </relocation>
+                <relocation>
+                  <pattern>javax</pattern>
+                  <shadedPattern>capsule.javax</shadedPattern>
+                  <includes><include>*</include></includes>
+                </relocation>
+              </relocations>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+</project>
