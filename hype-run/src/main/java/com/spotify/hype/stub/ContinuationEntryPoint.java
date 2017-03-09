@@ -33,17 +33,14 @@ import java.util.concurrent.ExecutionException;
  */
 public class ContinuationEntryPoint {
 
-  /**
-   * todo: specify working directory
-   *
-   * @param args
-   */
   public static void main(String[] args)
       throws IOException, ExecutionException, InterruptedException {
 
     if (args.length < 2) {
       throw new IllegalArgumentException("Usage: <staging-dir> <continuation-file>");
     }
+
+    System.setProperty("user.dir", args[0]);
 
     final Path continuationPath = Paths.get(args[0], args[1]);
     if (!Files.exists(continuationPath)) {

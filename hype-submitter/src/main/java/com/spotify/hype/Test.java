@@ -66,6 +66,8 @@ public class Test {
         throw Throwables.propagate(e);
       }
 
+      String cwd = System.getProperty("user.dir");
+      System.out.println("cwd = " + cwd);
       System.out.println("value = " + value);
       return value;
     };
