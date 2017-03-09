@@ -22,7 +22,6 @@ package com.spotify.hype;
 
 import static com.google.common.base.Strings.isNullOrEmpty;
 import static java.util.stream.Collectors.joining;
-import static java.util.stream.Collectors.toList;
 
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.Bucket;

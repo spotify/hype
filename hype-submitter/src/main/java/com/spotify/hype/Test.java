@@ -38,7 +38,7 @@ public class Test {
 
   public static void main(String[] args) {
     final Storage storage = StorageOptions.getDefaultInstance().getService();
-    final Submitter submitter = new Submitter(storage, "rouz-test");
+    final Submitter submitter = new Submitter(storage, args[0]);
 
     final List<String> files = localClasspath().stream()
         .map(entry -> Paths.get(URI.create(entry.getUrl())).toAbsolutePath().toString())
