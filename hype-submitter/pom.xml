@@ -12,6 +12,10 @@
 
   <dependencies>
     <dependency>
+      <groupId>org.jhades</groupId>
+      <artifactId>jhades</artifactId>
+    </dependency>
+    <dependency>
       <groupId>com.google.cloud</groupId>
       <artifactId>google-cloud-storage</artifactId>
     </dependency>
@@ -19,7 +23,23 @@
 
   <build>
     <plugins>
-
+      <plugin>
+        <groupId>com.github.chrisdchristo</groupId>
+        <artifactId>capsule-maven-plugin</artifactId>
+        <version>1.5.0</version>
+        <configuration>
+          <appClass>com.spotify.hype.Test</appClass>
+          <type>fat</type>
+        </configuration>
+        <executions>
+          <execution>
+            <phase>package</phase>
+            <goals>
+              <goal>build</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
     </plugins>
   </build>
 </project>

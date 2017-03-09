@@ -1,0 +1,143 @@
+/*-
+ * -\-\-
+ * hype-submitter
+ * --
+ * Copyright (C) 2016 - 2017 Spotify AB
+ * --
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * 
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ * -/-/-
+ */
+
+package com.spotify.hype.stub;
+
+import static com.google.cloud.storage.Storage.BlobListOption.prefix;
+
+import com.google.cloud.storage.Blob;
+import com.google.cloud.storage.Storage;
+import com.google.cloud.storage.StorageOptions;
+import com.google.common.base.Throwables;
+import com.spotify.hype.Fn;
+import com.spotify.hype.Submitter;
+import java.io.BufferedOutputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.net.URI;
+import java.nio.ByteBuffer;
+import java.nio.channels.Channels;
+import java.nio.channels.ReadableByteChannel;
+import java.nio.channels.WritableByteChannel;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ForkJoinPool;
+
+/**
+ * TODO: document.
+ */
+public class ContinuationEntryPoint {
+
+  private static final String STAGING_PREFIX = ".tmp";
+  private static final ForkJoinPool FJP = new ForkJoinPool(16);
+
+  /**
+   * todo: specify working directory
+   *
+   * @param args
+   */
+  public static void main(String[] args)
+      throws IOException, ExecutionException, InterruptedException {
+
+    if (args.length < 1) {
+      throw new IllegalArgumentException("Usage: <continuation-file>");
+    }
+
+    final Storage storage = StorageOptions.getDefaultInstance().getService();
+
+    final Path continuationPath = Paths.get(args[0]);
+    if (!Files.exists(continuationPath)) {
+      throw new IllegalArgumentException(continuationPath + " does not exist");
+    }
+    final Fn<?> continuation = Submitter.readContinuation(continuationPath);
+
+    Object returnValue;
+    try {
+      returnValue = continuation.run();
+    } catch (Throwable e) {
+      e.printStackTrace();
+      throw e;
+    }
+
+    final Path returnValuePath = Submitter.serializeReturnValue(returnValue);
+    System.out.println("returnValuePath = " + returnValuePath);
+  }
+
+  private static void downloadFiles(Storage storage, URI stagingPrefix)
+      throws IOException, ExecutionException, InterruptedException {
+
+    if (!"gs".equals(stagingPrefix.getScheme())) {
+      throw new IllegalArgumentException("Staging prefix must be a gs:// uri");
+    }
+
+    System.out.println("Downloading staging files from " + stagingPrefix);
+    Files.createDirectories(Paths.get(STAGING_PREFIX));
+
+    final String bucket =  stagingPrefix.getAuthority();
+    final String prefix = stagingPrefix.getPath().substring(1); // remove leading '/'
+    final Iterator<Blob> blobIterator =
+        storage.list(bucket, prefix(prefix)).iterateAll();
+
+    final List<Blob> stagedFiles = new ArrayList<>();
+    while (blobIterator.hasNext()) {
+      stagedFiles.add(blobIterator.next());
+    }
+
+    FJP.submit(
+      () -> stagedFiles.parallelStream()
+          .forEach(ContinuationEntryPoint::downloadFile))
+      .get();
+
+    System.out.println("Done");
+  }
+
+  private static void downloadFile(Blob blob) {
+    final String localFileName = Paths.get(blob.getName()).getFileName().toString();
+    final String localFilePath = Paths.get(STAGING_PREFIX, localFileName).toString();
+    System.out.println("... downloading blob " + blob.getName() + " -> " + localFilePath);
+
+    try (OutputStream bos = new BufferedOutputStream(new FileOutputStream(localFilePath))) {
+      try (ReadableByteChannel reader = blob.reader()) {
+        final WritableByteChannel writer = Channels.newChannel(bos);
+        final ByteBuffer buffer = ByteBuffer.allocate(8192);
+
+        int read;
+        while ((read = reader.read(buffer)) > 0) {
+          buffer.rewind();
+          buffer.limit(read);
+
+          while (read > 0) {
+            read -= writer.write(buffer);
+          }
+
+          buffer.clear();
+        }
+      }
+    } catch (IOException e) {
+      throw Throwables.propagate(e);
+    }
+  }
+}
