@@ -40,14 +40,13 @@ public class ContinuationEntryPoint {
       throw new IllegalArgumentException("Usage: <staging-dir> <continuation-file>");
     }
 
-    System.setProperty("user.dir", args[0]);
-
     final Path continuationPath = Paths.get(args[0], args[1]);
     if (!Files.exists(continuationPath)) {
       throw new IllegalArgumentException(continuationPath + " does not exist");
     }
     final Fn<?> continuation = SerializationUtil.readContinuation(continuationPath);
 
+    System.setProperty("user.dir", args[0]);
     Object returnValue;
     try {
       returnValue = continuation.run();

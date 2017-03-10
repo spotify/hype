@@ -49,7 +49,7 @@ import java.util.concurrent.ForkJoinPool;
 public class Hypelet extends Capsule {
 
   private static final String STAGING_PREFIX = "hype-run-";
-  private static final ForkJoinPool FJP = new ForkJoinPool(16);
+  private static final ForkJoinPool FJP = new ForkJoinPool(32);
 
   private final List<Path> downloadedJars = new ArrayList<>();
 
@@ -124,13 +124,15 @@ public class Hypelet extends Capsule {
 
   private void downloadFile(Blob blob, Path temp) {
     final String localFileName = Paths.get(blob.getName()).getFileName().toString();
+    final boolean addToClasspath = localFileName.endsWith(".jar");
     final Path localFilePath = temp.resolve(localFileName);
 
-    System.out.println("... downloading blob " + blob.getName());
-    if (localFilePath.getFileName().toString().endsWith(".jar")) {
-      System.out.println("  ` adding to classpath");
+    if (addToClasspath) {
       downloadedJars.add(localFilePath);
     }
+
+    System.out.println("... downloading blob " + blob.getName() +
+                       (addToClasspath ? " ++classpath" : ""));
 
     try (OutputStream bos = new BufferedOutputStream(new FileOutputStream(localFilePath.toFile()))) {
       try (ReadableByteChannel reader = blob.reader()) {

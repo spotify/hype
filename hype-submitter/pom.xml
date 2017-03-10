@@ -23,6 +23,10 @@
     </dependency>
 
     <dependency>
+      <groupId>com.google.auto.value</groupId>
+      <artifactId>auto-value</artifactId>
+    </dependency>
+    <dependency>
       <groupId>org.jhades</groupId>
       <artifactId>jhades</artifactId>
     </dependency>

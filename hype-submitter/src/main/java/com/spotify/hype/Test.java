@@ -24,33 +24,19 @@ import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageOptions;
 import com.google.common.base.Throwables;
 import com.spotify.hype.util.Fn;
-import com.spotify.hype.util.SerializationUtil;
 import io.rouz.flo.Task;
 import io.rouz.flo.TaskContext;
-import java.net.URI;
 import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.function.UnaryOperator;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-import org.jhades.model.ClasspathEntry;
-import org.jhades.service.ClasspathScanner;
 
 public class Test {
 
   public static void main(String[] args) {
-    final Storage storage = StorageOptions.getDefaultInstance().getService();
-    final Submitter submitter = new Submitter(storage, args[0]);
+    final ClasspathInspector classpathInspector = new LocalClasspathInspector(Test.class);
 
-    final List<String> files = localClasspath().stream()
-        .map(entry -> Paths.get(URI.create(entry.getUrl())).toAbsolutePath().toString())
-        .collect(Collectors.toList());
-
+    final List<Path> files = classpathInspector.localClasspathJars();
     final Task<String> task = Task.named("foo").ofType(String.class)
         .process(() -> "hello");
 
@@ -72,43 +58,11 @@ public class Test {
       return value;
     };
 
-    final Path continuationPath = SerializationUtil.serializeContinuation(fn);
-    files.add(continuationPath.toAbsolutePath().toString());
+    final Storage storage = StorageOptions.getDefaultInstance().getService();
+    final Submitter submitter = new Submitter(storage, args[0], classpathInspector);
 
-    URI stagedLocation = submitter.stageFiles(files);
-    System.out.println("stage args " + stagedLocation + " " + continuationPath.getFileName());
-  }
-
-  private static Set<ClasspathEntry> localClasspath() {
-    final ClasspathScanner scanner = new ClasspathScanner();
-    final String classLoaderName = Test.class.getClassLoader().getClass().getName();
-
-    return scanner.findAllClasspathEntries().stream()
-        .filter(entry -> classLoaderName.equals(entry.getClassLoaderName()))
-        .flatMap(Test::jarFileEntriesWithExpandedManifest)
-        .collect(Collectors.toCollection(LinkedHashSet::new));
-  }
-
-  private static Stream<ClasspathEntry> jarFileEntriesWithExpandedManifest(ClasspathEntry entry) {
-    if (!entry.isJar() || !entry.getUrl().startsWith("file:")) {
-      return Stream.empty();
-    }
-
-    if (entry.findManifestClasspathEntries().isEmpty()) {
-      return Stream.of(entry);
-    } else {
-      final URI uri = URI.create(entry.getUrl());
-      Path path = Paths.get(uri).getParent();
-      return Stream.concat(
-          Stream.of(entry),
-          entry.findManifestClasspathEntries().stream()
-              .map(normalizerUsingPath(path)));
-    }
-  }
-
-  private static UnaryOperator<ClasspathEntry> normalizerUsingPath(Path base) {
-    return entry -> new ClasspathEntry(
-        entry.getClassLoader(),
-        base.resolve(entry.getUrl()).toUri().toString());
+    StagedContinuation stagedContinuation = submitter.stageContinuation(fn);
+    System.out.println("stage args " + stagedContinuation.stageLocation() + " " +
+                       stagedContinuation.continuationFileName());
   }
 }
