@@ -59,7 +59,7 @@ public class Test {
     };
 
     final Storage storage = StorageOptions.getDefaultInstance().getService();
-    final Submitter submitter = new Submitter(storage, args[0], classpathInspector);
+    final Submitter submitter = Submitter.create(storage, args[0], classpathInspector);
 
     StagedContinuation stagedContinuation = submitter.stageContinuation(fn);
     System.out.println("stage args " + stagedContinuation.stageLocation() + " " +

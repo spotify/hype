@@ -60,7 +60,12 @@ public class Submitter {
   private final String bucketName;
   private final ClasspathInspector classpathInspector;
 
-  public Submitter(Storage storage, String bucketName, ClasspathInspector classpathInspector) {
+  public static Submitter create(
+      Storage storage, String bucketName, ClasspathInspector classpathInspector) {
+    return new Submitter(storage, bucketName, classpathInspector);
+  }
+
+  private Submitter(Storage storage, String bucketName, ClasspathInspector classpathInspector) {
     this.storage = Objects.requireNonNull(storage);
     this.bucketName = Objects.requireNonNull(bucketName);
     this.classpathInspector = Objects.requireNonNull(classpathInspector);

@@ -1,3 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
@@ -15,7 +16,7 @@
   <packaging>pom</packaging>
 
   <name>hype - hyper executor</name>
-  <url>http://maven.apache.org</url>
+  <url>https://github.com/spotify/hype</url>
 
   <modules>
     <module>hype-submitter</module>
@@ -53,17 +54,6 @@
     <developerConnection>scm:git:git@github.com:spotify/hype.git</developerConnection>
     <tag>HEAD</tag>
   </scm>
-
-  <dependencies>
-    <dependency>
-      <groupId>com.google.guava</groupId>
-      <artifactId>guava</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.slf4j</groupId>
-      <artifactId>slf4j-api</artifactId>
-    </dependency>
-  </dependencies>
 
   <dependencyManagement>
     <dependencies>

@@ -20,7 +20,6 @@
 
 package com.spotify.hype.util;
 
-import com.google.common.base.Throwables;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -60,8 +59,7 @@ public class SerializationUtil {
       }
       return stateFilePath;
     } catch (IOException e) {
-      e.printStackTrace();
-      throw Throwables.propagate(e);
+      throw new RuntimeException(e);
     }
   }
 
@@ -70,8 +68,7 @@ public class SerializationUtil {
     try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(file))) {
       return ois.readObject();
     } catch (IOException | ClassNotFoundException e) {
-      e.printStackTrace();
-      throw Throwables.propagate(e);
+      throw new RuntimeException(e);
     }
   }
 }
