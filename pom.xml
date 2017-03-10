@@ -46,6 +46,16 @@
       <email>rouz@spotify.com</email>
       <name>Rouzbeh Delavari</name>
     </developer>
+    <developer>
+      <id>rgruener</id>
+      <email>robertg@spotify.com</email>
+      <name>Robert Gruener</name>
+    </developer>
+    <developer>
+      <id>yonromai</id>
+      <email>romain@spotify.com</email>
+      <name>Romain Yon</name>
+    </developer>
   </developers>
 
   <scm>
