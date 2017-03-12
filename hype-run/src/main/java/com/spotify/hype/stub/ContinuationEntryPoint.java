@@ -44,9 +44,15 @@ public class ContinuationEntryPoint {
     if (!Files.exists(continuationPath)) {
       throw new IllegalArgumentException(continuationPath + " does not exist");
     }
-    final Fn<?> continuation = SerializationUtil.readContinuation(continuationPath);
+
+    final Path returnValuePath = Paths.get(args[0], args[2]);
+    if (Files.exists(returnValuePath)) {
+      throw new IllegalArgumentException(returnValuePath + " already exists");
+    }
 
     System.setProperty("user.dir", args[0]);
+    final Fn<?> continuation = SerializationUtil.readContinuation(continuationPath);
+
     Object returnValue;
     try {
       returnValue = continuation.run();
@@ -55,7 +61,7 @@ public class ContinuationEntryPoint {
       throw e;
     }
 
-    final Path returnValuePath = SerializationUtil.serializeReturnValue(returnValue);
+    SerializationUtil.serializeObject(returnValue, returnValuePath);
     System.out.println("returnValuePath = " + returnValuePath);
   }
 }

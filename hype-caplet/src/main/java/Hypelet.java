@@ -49,6 +49,7 @@ import java.util.concurrent.ForkJoinPool;
 public class Hypelet extends Capsule {
 
   private static final String STAGING_PREFIX = "hype-run-";
+  private static final String RETURN_FILE = "return.ser";
   private static final ForkJoinPool FJP = new ForkJoinPool(32);
 
   private final List<Path> downloadedJars = new ArrayList<>();
@@ -88,7 +89,8 @@ public class Hypelet extends Capsule {
 
       final List<String> stubArgs = new ArrayList<>(args.size());
       stubArgs.add(stagingDir.toString());
-      stubArgs.addAll(args.subList(1, args.size()));
+      stubArgs.add(args.get(1));
+      stubArgs.add(RETURN_FILE);
       return super.prelaunch(jvmArgs, stubArgs);
     } catch (Throwable e) {
       throw Throwables.propagate(e);

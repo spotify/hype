@@ -29,35 +29,31 @@ import java.io.ObjectOutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-/**
- * TODO: document.
- */
 public class SerializationUtil {
 
   private static final String CONT_FILE = "continuation-";
-  private static final String RET_FILE = "return-";
   private static final String SER = ".ser";
 
   public static Path serializeContinuation(Fn<?> continuation) {
-    return serializeObject(continuation, CONT_FILE);
-  }
-
-  public static Path serializeReturnValue(Object value) {
-    return serializeObject(value, RET_FILE);
+    try {
+      final Path outputPath = Files.createTempFile(CONT_FILE, SER);
+      serializeObject(continuation, outputPath);
+      return outputPath;
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   public static Fn<?> readContinuation(Path continuationPath) {
     return (Fn<?>) readObject(continuationPath);
   }
 
-  private static Path serializeObject(Object obj, String filePrefix) {
+  public static void serializeObject(Object obj, Path outputPath) {
     try {
-      final Path stateFilePath = Files.createTempFile(filePrefix, SER);
-      final File file = stateFilePath.toFile();
+      final File file = outputPath.toFile();
       try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(file))) {
         oos.writeObject(obj);
       }
-      return stateFilePath;
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
