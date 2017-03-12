@@ -18,17 +18,22 @@
  * -/-/-
  */
 
+import static com.google.cloud.storage.Bucket.BlobWriteOption.doesNotExist;
 import static com.google.cloud.storage.Storage.BlobListOption.prefix;
 
 import com.google.cloud.storage.Blob;
+import com.google.cloud.storage.Bucket;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageOptions;
 import com.google.common.base.Throwables;
 import java.io.BufferedOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
@@ -49,13 +54,57 @@ import java.util.concurrent.ForkJoinPool;
 public class Hypelet extends Capsule {
 
   private static final String STAGING_PREFIX = "hype-run-";
-  private static final String RETURN_FILE = "return.ser";
+  private static final String APPLICATION_OCTET_STREAM = "application/octet-stream";
+
   private static final ForkJoinPool FJP = new ForkJoinPool(32);
 
   private final List<Path> downloadedJars = new ArrayList<>();
 
+  private Storage storage;
+  private URI stagingPrefix;
+  private Path stagingDir;
+  private String returnFile;
+
   public Hypelet(Capsule pred) {
     super(pred);
+  }
+
+  @Override
+  protected ProcessBuilder prelaunch(List<String> jvmArgs, List<String> args) {
+    if (args.size() < 2) {
+      throw new IllegalArgumentException("Usage: <gcs-staging-uri> <continuation-file>");
+    }
+
+    try {
+      storage = StorageOptions.getDefaultInstance().getService();
+      stagingPrefix = URI.create(args.get(0));
+      stagingDir = Files.createTempDirectory(STAGING_PREFIX);
+      returnFile = args.get(1).replaceFirst("\\.ser", "-return.ser");
+
+      try {
+        downloadFiles(stagingPrefix, stagingDir);
+      } catch (IOException | ExecutionException | InterruptedException e) {
+        throw Throwables.propagate(e);
+      }
+
+      final List<String> stubArgs = new ArrayList<>(args.size());
+      stubArgs.add(stagingDir.toString());
+      stubArgs.add(args.get(1));
+      stubArgs.add(returnFile);
+      return super.prelaunch(jvmArgs, stubArgs);
+    } catch (Throwable e) {
+      throw Throwables.propagate(e);
+    }
+  }
+
+  @Override
+  protected void cleanup() {
+    final Path returnFilePath = stagingDir.resolve(returnFile);
+    System.out.println("Upload serialized return value: " + returnFilePath);
+
+    upload(returnFilePath.toFile(), stagingPrefix);
+
+    super.cleanup();
   }
 
   @Override
@@ -71,33 +120,7 @@ public class Hypelet extends Capsule {
     return o;
   }
 
-  @Override
-  protected ProcessBuilder prelaunch(List<String> jvmArgs, List<String> args) {
-    if (args.size() < 2) {
-      throw new IllegalArgumentException("Usage: <gcs-staging-uri> <continuation-file>");
-    }
-
-    try {
-      final Storage storage = StorageOptions.getDefaultInstance().getService();
-      final URI stagingPrefix = URI.create(args.get(0));
-      final Path stagingDir = Files.createTempDirectory(STAGING_PREFIX);
-      try {
-        downloadFiles(storage, stagingPrefix, stagingDir);
-      } catch (IOException | ExecutionException | InterruptedException e) {
-        throw Throwables.propagate(e);
-      }
-
-      final List<String> stubArgs = new ArrayList<>(args.size());
-      stubArgs.add(stagingDir.toString());
-      stubArgs.add(args.get(1));
-      stubArgs.add(RETURN_FILE);
-      return super.prelaunch(jvmArgs, stubArgs);
-    } catch (Throwable e) {
-      throw Throwables.propagate(e);
-    }
-  }
-
-  private void downloadFiles(Storage storage, URI stagingPrefix, Path temp)
+  private void downloadFiles(URI stagingPrefix, Path temp)
       throws IOException, ExecutionException, InterruptedException {
 
     if (!"gs".equals(stagingPrefix.getScheme())) {
@@ -154,6 +177,26 @@ public class Hypelet extends Capsule {
         }
       }
     } catch (IOException e) {
+      throw Throwables.propagate(e);
+    }
+  }
+
+  private URI upload(File file, URI uploadPrefix) {
+    if (!"gs".equals(uploadPrefix.getScheme())) {
+      throw new IllegalArgumentException("Staging prefix must be a gs:// uri");
+    }
+
+    final String bucketName =  uploadPrefix.getAuthority();
+    final String prefix = uploadPrefix.getPath().substring(1); // remove leading '/'
+    final Path uploadPath = Paths.get(prefix, file.getName());
+
+    try (FileInputStream inputStream = new FileInputStream(file)) {
+      Bucket bucket = storage.get(bucketName);
+      String blobName = uploadPath.toString();
+      Blob blob = bucket.create(blobName, inputStream, APPLICATION_OCTET_STREAM, doesNotExist());
+
+      return new URI("gs", blob.getBucket(), "/" + blob.getName(), null);
+    } catch (URISyntaxException | IOException e) {
       throw Throwables.propagate(e);
     }
   }

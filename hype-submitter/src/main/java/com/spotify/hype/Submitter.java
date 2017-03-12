@@ -104,13 +104,14 @@ public class Submitter {
   }
 
   private URI upload(Path prefix, Path file) {
-    File local = file.toFile();
     LOG.debug("Staging {} in GCS bucket {}", file, bucketName);
+    return upload(file.toFile(), storage, bucketName, prefix);
+  }
 
-    try {
+  private static URI upload(File file, Storage storage, String bucketName, Path prefix) {
+    try (FileInputStream inputStream = new FileInputStream(file)) {
       Bucket bucket = storage.get(bucketName);
-      String blobName = prefix.resolve(local.getName()).toString();
-      FileInputStream inputStream = new FileInputStream(local);
+      String blobName = prefix.resolve(file.getName()).toString();
       Blob blob = bucket.create(blobName, inputStream, APPLICATION_OCTET_STREAM);
 
       return new URI("gs", blob.getBucket(), "/" + blob.getName(), null);
