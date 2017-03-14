@@ -104,10 +104,6 @@ class LocalDockerRunner implements DockerRunner {
     return creation.id();
   }
 
-  @Override
-  public void cleanup(String executionId) {
-  }
-
   private void blockUntilComplete(final String containerId) throws InterruptedException {
     LOG.debug("Checking running statuses");
 

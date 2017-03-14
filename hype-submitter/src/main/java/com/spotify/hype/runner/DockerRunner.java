@@ -21,12 +21,10 @@
 package com.spotify.hype.runner;
 
 import com.google.auto.value.AutoValue;
+import io.fabric8.kubernetes.client.DefaultKubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import java.io.Closeable;
 import java.io.IOException;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.function.Function;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,12 +42,6 @@ public interface DockerRunner extends Closeable {
    * @return The execution id for the docker instance which ran.
    */
   String run(RunSpec runSpec) throws IOException;
-
-  /**
-   * Execute cleanup operations for when an execution finishes.
-   * @param executionId The execution id for which the cleanup code is called
-   */
-  void cleanup(String executionId);
 
   @AutoValue
   abstract class RunSpec {
@@ -77,39 +69,22 @@ public interface DockerRunner extends Closeable {
    *
    * @return A locally operating docker runner
    */
-  static DockerRunner local(ScheduledExecutorService executorService) {
+  static DockerRunner local() {
     return new LocalDockerRunner();
   }
 
   static DockerRunner kubernetes(KubernetesClient kubernetesClient) {
-    final KubernetesDockerRunner dockerRunner = new KubernetesDockerRunner(kubernetesClient);
-
-//    dockerRunner.init();
-    return null;
+    return new KubernetesDockerRunner(kubernetesClient);
   }
 
-  /**
-   * Creates a {@link DockerRunner} that will dynamically create and route to other docker runner
-   * instances using the given factory.
-   *
-   * <p>The active docker runner id will be read from dockerId supplier on each routing decision.
-   */
-//  static DockerRunner routing(DockerRunnerFactory dockerRunnerFactory, Supplier<String> dockerId) {
-//    return new RoutingDockerRunner(dockerRunnerFactory, dockerId);
-//  }
-
-  /**
-   * Factory for {@link DockerRunner} instances identified by a string identifier
-   */
-  interface DockerRunnerFactory extends Function<String, DockerRunner> { }
-
   public static void main(String[] args) throws IOException {
-    ScheduledExecutorService execService =   Executors.newScheduledThreadPool(1);
-    final DockerRunner local = DockerRunner.local(execService);
-    final RunSpec
-        runSpec =
+    // Need to inject environment variables such as
+    final DockerRunner kubernetes = DockerRunner.kubernetes(new DefaultKubernetesClient());
+    final DockerRunner local = DockerRunner.local();
+
+    final RunSpec runSpec =
         RunSpec.create("hype-runner", "gs://user-track-plays/spotify-hype-staging",
-                       "continuation-7018424298640781079.ser", "/home/robertg/installs/discover-weekly.json");
+                       "continuation-4792440913169484884.ser", "/home/robertg/installs/discover-weekly.json");
     local.run(runSpec);
   }
 }
