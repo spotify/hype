@@ -10,7 +10,7 @@
   </parent>
 
   <artifactId>hype-root</artifactId>
-  <version>0.0.2</version>
+  <version>0.0.3-SNAPSHOT</version>
   <packaging>pom</packaging>
 
   <name>hype - hyper executor</name>
@@ -60,7 +60,7 @@
     <url>https://github.com/spotify/hype</url>
     <connection>scm:git:git@github.com:spotify/hype.git</connection>
     <developerConnection>scm:git:git@github.com:spotify/hype.git</developerConnection>
-    <tag>v0.0.2</tag>
+    <tag>HEAD</tag>
   </scm>
 
   <dependencyManagement>
