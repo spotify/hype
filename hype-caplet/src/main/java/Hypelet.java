@@ -99,10 +99,13 @@ public class Hypelet extends Capsule {
 
   @Override
   protected void cleanup() {
-    final Path returnFilePath = stagingDir.resolve(returnFile);
-    System.out.println("Upload serialized return value: " + returnFilePath);
-
-    upload(returnFilePath.toFile(), stagingPrefix);
+    if (stagingDir != null) {
+      final Path returnFilePath = stagingDir.resolve(returnFile);
+      if (Files.exists(returnFilePath)) {
+        System.out.println("Upload serialized return value: " + returnFilePath);
+        upload(returnFilePath.toFile(), stagingPrefix);
+      }
+    }
 
     super.cleanup();
   }

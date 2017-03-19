@@ -20,6 +20,8 @@
 
 package com.spotify.hype;
 
+import static java.util.stream.Collectors.toList;
+
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageOptions;
 import com.google.common.base.Throwables;
@@ -40,8 +42,10 @@ public class Test {
     final Task<String> task = Task.named("foo").ofType(String.class)
         .process(() -> "hello");
 
+    final List<String> fileStrings = files.stream().map(Path::toString).collect(toList());
+
     Fn<?> fn = () -> {
-      files.forEach(file -> System.out.println("running in continuation " + file));
+      fileStrings.forEach(file -> System.out.println("running in continuation " + file));
 
       CompletableFuture<String> future = new CompletableFuture<>();
       TaskContext.inmem().evaluate(task).consume(future::complete);
