@@ -20,7 +20,13 @@
 
 package com.spotify.hype.runner;
 
+import com.google.api.client.googleapis.auth.oauth2.GoogleCredential;
+import com.google.api.services.container.Container;
+import com.google.api.services.container.ContainerScopes;
+import com.google.api.services.container.model.Cluster;
 import com.google.auto.value.AutoValue;
+import com.google.common.base.Throwables;
+import io.fabric8.kubernetes.client.ConfigBuilder;
 import io.fabric8.kubernetes.client.DefaultKubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import java.io.Closeable;
@@ -77,14 +83,43 @@ public interface DockerRunner extends Closeable {
     return new KubernetesDockerRunner(kubernetesClient);
   }
 
-  public static void main(String[] args) throws IOException {
+  static void main(String[] args) throws IOException {
     // Need to inject environment variables such as
-    final DockerRunner kubernetes = DockerRunner.kubernetes(new DefaultKubernetesClient());
+    final KubernetesClient kubernetesClient = createKubernetesClient();
+    final DockerRunner kubernetes = DockerRunner.kubernetes(kubernetesClient);
     final DockerRunner local = DockerRunner.local();
 
     final RunSpec runSpec =
-        RunSpec.create("hype-runner", "gs://user-track-plays/spotify-hype-staging",
-                       "continuation-4792440913169484884.ser", "/home/robertg/installs/discover-weekly.json");
-    local.run(runSpec);
+        RunSpec.create(
+            "hype-runner",
+            "gs://rouz-test/spotify-hype-staging",
+            "continuation-7495030347410371367.bin",
+            "/home/robertg/installs/discover-weekly.json");
+    kubernetes.run(runSpec);
   }
+
+  static KubernetesClient createKubernetesClient() {
+    try {
+      final GoogleCredential credential = GoogleCredential.getApplicationDefault()
+          .createScoped(ContainerScopes.all());
+      final Container gke = new Container.Builder(credential.getTransport(), credential.getJsonFactory(), credential)
+          .setApplicationName("hype")
+          .build();
+
+      final Cluster cluster = gke.projects().zones().clusters()
+          .get("datawhere-test", "us-east1-d", "hype-test").execute();
+
+      final io.fabric8.kubernetes.client.Config kubeConfig = new ConfigBuilder()
+          .withMasterUrl("https://" + cluster.getEndpoint())
+          .withCaCertData(cluster.getMasterAuth().getClusterCaCertificate())
+          .withClientCertData(cluster.getMasterAuth().getClientCertificate())
+          .withClientKeyData(cluster.getMasterAuth().getClientKey())
+          .build();
+
+      return new DefaultKubernetesClient(kubeConfig);
+    } catch (IOException e) {
+      throw Throwables.propagate(e);
+    }
+  }
+
 }
