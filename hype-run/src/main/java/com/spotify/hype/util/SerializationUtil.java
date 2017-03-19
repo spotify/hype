@@ -20,23 +20,26 @@
 
 package com.spotify.hype.util;
 
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.io.Input;
+import com.esotericsoftware.kryo.io.Output;
+import com.esotericsoftware.kryo.serializers.ClosureSerializer;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import org.objenesis.strategy.StdInstantiatorStrategy;
 
 public class SerializationUtil {
 
   private static final String CONT_FILE = "continuation-";
-  private static final String SER = ".ser";
+  private static final String EXT = ".bin";
 
   public static Path serializeContinuation(Fn<?> continuation) {
     try {
-      final Path outputPath = Files.createTempFile(CONT_FILE, SER);
+      final Path outputPath = Files.createTempFile(CONT_FILE, EXT);
       serializeObject(continuation, outputPath);
       return outputPath;
     } catch (IOException e) {
@@ -45,25 +48,36 @@ public class SerializationUtil {
   }
 
   public static Fn<?> readContinuation(Path continuationPath) {
-    return (Fn<?>) readObject(continuationPath);
+    return (Fn) readObject(continuationPath);
   }
 
   public static void serializeObject(Object obj, Path outputPath) {
+    Kryo kryo = new Kryo();
+    kryo.register(java.lang.invoke.SerializedLambda.class);
+    kryo.register(ClosureSerializer.Closure.class, new ClosureSerializer());
+
     try {
       final File file = outputPath.toFile();
-      try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(file))) {
-        oos.writeObject(obj);
+      try (Output output = new Output(new FileOutputStream(file))) {
+        kryo.writeClassAndObject(output, obj);
       }
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
   }
 
-  private static Object readObject(Path continuationPath) {
+  private static <T> Object readObject(Path continuationPath) {
+    Kryo kryo = new Kryo();
+    kryo.register(java.lang.invoke.SerializedLambda.class);
+    kryo.register(ClosureSerializer.Closure.class, new ClosureSerializer());
+    kryo.setInstantiatorStrategy(new Kryo.DefaultInstantiatorStrategy(new StdInstantiatorStrategy()));
+
+
     File file = continuationPath.toFile();
-    try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(file))) {
-      return ois.readObject();
-    } catch (IOException | ClassNotFoundException e) {
+
+    try (Input input = new Input(new FileInputStream(file))) {
+      return kryo.readClassAndObject(input);
+    } catch (IOException e) {
       throw new RuntimeException(e);
     }
   }

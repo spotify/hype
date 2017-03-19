@@ -79,7 +79,7 @@ public class Hypelet extends Capsule {
       storage = StorageOptions.getDefaultInstance().getService();
       stagingPrefix = URI.create(args.get(0));
       stagingDir = Files.createTempDirectory(STAGING_PREFIX);
-      returnFile = args.get(1).replaceFirst("\\.ser", "-return.ser");
+      returnFile = args.get(1).replaceFirst("\\.bin", "-return.bin");
 
       try {
         downloadFiles(stagingPrefix, stagingDir);
