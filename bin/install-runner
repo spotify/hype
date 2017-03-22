@@ -17,7 +17,7 @@ curl -#fL --output ${JAR} \
 
 
 cat > ${DEST}/hype-run <<EOF
-#/usr/bin/env bash
+#!/usr/bin/env bash
 
 exec /usr/bin/java \${JVM_ARGS} -jar ${JAR} "\$@"
 EOF
