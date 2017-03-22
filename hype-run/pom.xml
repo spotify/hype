@@ -58,19 +58,16 @@
         <artifactId>capsule-maven-plugin</artifactId>
         <version>1.5.0</version>
 
-        <!-- configured to include the maven caplet in order to download the hyp-caplet
-             as setting up a build to include custom caplets directly does not seem to be
-             supported by the capsule plugin -->
+        <!-- configured to include the maven caplet in order to download the hype-caplet -->
         <configuration>
           <appClass>com.spotify.hype.stub.ContinuationEntryPoint</appClass>
           <caplets>com.spotify:hype-caplet:${project.version}</caplets>
 
-          <!-- custom configuration that does not include project dependencies since
-               they should already be in the shaded project jar -->
           <includeApp>true</includeApp>
-          <includeAppDep>false</includeAppDep>
-          <resolveApp>true</resolveApp>
-          <resolveAppDep>false</resolveAppDep>
+
+          <!-- this is set to true to get the capsule plugin to embed the maven caplet -->
+          <!-- it should not do anything in runtime as we don't have any system deps -->
+          <resolveSystemDep>true</resolveSystemDep>
 
           <modes>
             <mode>
