@@ -3,7 +3,7 @@ MAINTAINER dataex <dataex-squad@spotify.net>
 
 ENV GOOGLE_APPLICATION_CREDENTIALS /etc/gcloud/key.json
 
-# Download and install runner capsule
-RUN ["bash", "-c", "bash <(curl -fsSL https://raw.githubusercontent.com/spotify/hype/master/bin/install-runner?token=AAoAXJUmfmJ9dttUgI_9E8vbJOOspn7Yks5Y2zW0wA%3D%3D)"]
+# Install hype-run command
+RUN /bin/sh -c "$(curl -fsSL https://goo.gl/kSogpF)"
 
-ENTRYPOINT hype-run
+ENTRYPOINT ["hype-run"]
