@@ -20,19 +20,69 @@
     <dependency>
       <groupId>junit</groupId>
       <artifactId>junit</artifactId>
+      <scope>test</scope>
     </dependency>
   </dependencies>
 
   <build>
     <plugins>
+      <!-- shade runner jar to avoid exposing kryo to user code -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-shade-plugin</artifactId>
+        <version>3.0.0</version>
+        <executions>
+          <execution>
+            <phase>package</phase>
+            <goals>
+              <goal>shade</goal>
+            </goals>
+            <configuration>
+              <relocations>
+                <relocation>
+                  <pattern>com.esotericsoftware</pattern>
+                  <shadedPattern>shaded.com.esotericsoftware</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>org.objenesis</pattern>
+                  <shadedPattern>shaded.org.objenesis</shadedPattern>
+                </relocation>
+              </relocations>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
       <plugin>
         <groupId>com.github.chrisdchristo</groupId>
         <artifactId>capsule-maven-plugin</artifactId>
         <version>1.5.0</version>
+
+        <!-- configured to include the maven caplet in order to download the hyp-caplet
+             as setting up a build to include custom caplets directly does not seem to be
+             supported by the capsule plugin -->
         <configuration>
           <appClass>com.spotify.hype.stub.ContinuationEntryPoint</appClass>
           <caplets>com.spotify:hype-caplet:${project.version}</caplets>
-          <type>thin</type>
+
+          <!-- custom configuration that does not include project dependencies since
+               they should already be in the shaded project jar -->
+          <includeApp>true</includeApp>
+          <includeAppDep>false</includeAppDep>
+          <resolveApp>true</resolveApp>
+          <resolveAppDep>false</resolveAppDep>
+
+          <modes>
+            <mode>
+              <name>noop</name>
+              <manifest>
+                <entry>
+                  <key>Application-Class</key>
+                  <value>com.spotify.hype.stub.Noop</value>
+                </entry>
+              </manifest>
+            </mode>
+          </modes>
           <manifest>
             <entry>
               <key>Allow-Snapshots</key>

@@ -49,10 +49,19 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ForkJoinPool;
 
 /**
- * TODO: document.
+ * Capsule caplet that downloads a Google Cloud Storage (gs://) prefix to a temp directory before
+ * invoking the application JVM in the capsule.
+ *
+ * <p>It tasks two command line arguments: {@code <gcs-staging-uri> <continuation-file>}.
+ *
+ * <p>After staging the location locally, it invokes the inner JVM by replacing the first
+ * argument with a path to the local temp directory. It also adds a third argument to a filename
+ * within the temp directory that, if written, will be uploaded the to the GCS staging uri when
+ * the inner JVM exits.
  */
 public class Hypelet extends Capsule {
 
+  private static final String NOOP_MODE = "noop";
   private static final String STAGING_PREFIX = "hype-run-";
   private static final String APPLICATION_OCTET_STREAM = "application/octet-stream";
 
@@ -71,6 +80,10 @@ public class Hypelet extends Capsule {
 
   @Override
   protected ProcessBuilder prelaunch(List<String> jvmArgs, List<String> args) {
+    if (NOOP_MODE.equals(getMode())) {
+      return super.prelaunch(jvmArgs, args);
+    }
+
     if (args.size() < 2) {
       throw new IllegalArgumentException("Usage: <gcs-staging-uri> <continuation-file>");
     }

@@ -66,7 +66,7 @@ public class SerializationUtil {
     }
   }
 
-  private static <T> Object readObject(Path continuationPath) {
+  private static Object readObject(Path continuationPath) {
     Kryo kryo = new Kryo();
     kryo.register(java.lang.invoke.SerializedLambda.class);
     kryo.register(ClosureSerializer.Closure.class, new ClosureSerializer());

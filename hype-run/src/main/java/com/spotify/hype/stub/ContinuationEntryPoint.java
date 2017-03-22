@@ -22,20 +22,16 @@ package com.spotify.hype.stub;
 
 import com.spotify.hype.util.Fn;
 import com.spotify.hype.util.SerializationUtil;
-import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.concurrent.ExecutionException;
 
 /**
  * TODO: document.
  */
 public class ContinuationEntryPoint {
 
-  public static void main(String[] args)
-      throws IOException, ExecutionException, InterruptedException {
-
+  public static void main(String[] args) throws Exception {
     if (args.length < 2) {
       throw new IllegalArgumentException("Usage: <staging-dir> <continuation-file>");
     }
