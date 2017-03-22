@@ -4,11 +4,11 @@
   <parent>
     <artifactId>hype-root</artifactId>
     <groupId>com.spotify</groupId>
-    <version>0.0.3-SNAPSHOT</version>
+    <version>0.0.3</version>
   </parent>
 
   <artifactId>hype-caplet</artifactId>
-  <version>0.0.3-SNAPSHOT</version>
+  <version>0.0.3</version>
 
   <properties>
     <gcloud.version>0.9.4-beta</gcloud.version>
