@@ -21,6 +21,39 @@ It is important to have exactly this `ENTRYPOINT` as the Kubernetes Pods will ex
 
 See example [`Dockerfile`](docker/Dockerfile)
 
+## Submit
+
+Create a hype `Submitter` and use `runOnCluster(fn, env)` to run a closure in your docker container
+environment on a Kubernetes cluster. This example runs a simple block of code that just constructs
+a list of all environment variables and returns it.
+
+```java
+// A function to run in a docker container
+Fn<List<String>> fn = () -> {
+  List<String> env = System.getenv().entrySet().stream()
+      .map(e -> e.getKey() + "=" + e.getValue())
+      .peek(System.out::println)
+      .collect(Collectors.toList());
+
+  return env;
+};
+
+// Use a Google Cloud Container Engine managed cluster
+ContainerEngineCluster cluster = containerEngineCluster(
+    "gcp-project-id", "gce-zone-id", "gke-cluster-id"); // modify these
+
+RunEnvironment env = environment(
+    "us.gcr.io/datawhere-test/hype-runner:5", // the env image we created earlier
+    secret("gcp-key", "/etc/gcloud")); // a pre-created k8s secret volume named "gcp-key"
+
+Submitter submitter = Submitter.create('my-staging-bucket', cluster);
+
+List<String> result = submitter.runOnCluster(fn, env);
+```
+
+The `result` list returned should contain the environment variables that were present in the
+docker container while running on the cluster.
+
 ---
 
 _This project is in early development stages, expect anything you see to change._
