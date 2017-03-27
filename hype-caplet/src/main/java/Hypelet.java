@@ -252,7 +252,7 @@ public class Hypelet extends Capsule {
   private static String getRunId() {
     return System.getenv().containsKey(HYPE_EXECUTION_ID)
         ? System.getenv(HYPE_EXECUTION_ID)
-        : randomAlphaNumeric(16);
+        : randomAlphaNumeric(8);
   }
 
   private static String randomAlphaNumeric(int count) {

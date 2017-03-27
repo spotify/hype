@@ -73,7 +73,7 @@ class KubernetesDockerRunner implements DockerRunner {
   }
 
   private static Pod createPod(RunSpec runSpec) {
-    final String podName = HYPE_RUN + "-" + randomAlphaNumeric(16);
+    final String podName = HYPE_RUN + "-" + randomAlphaNumeric(8);
     final RunEnvironment env = runSpec.runEnvironment();
     final StagedContinuation stagedContinuation = runSpec.stagedContinuation();
     final String imageWithTag = env.image().contains(":")

@@ -24,35 +24,29 @@ import static com.spotify.hype.ContainerEngineCluster.containerEngineCluster;
 import static com.spotify.hype.RunEnvironment.environment;
 import static com.spotify.hype.RunEnvironment.secret;
 
-import com.google.cloud.storage.Storage;
-import com.google.cloud.storage.StorageOptions;
 import com.spotify.hype.util.Fn;
 import java.util.stream.Collectors;
 
 public class Example {
 
-  private static final ClasspathInspector CPI = ClasspathInspector.forClass(Example.class);
-
   public static void main(String[] args) {
     final Record record = new Record("hello", 42);
-
-    Fn<Record> fn = () -> {
+    final Fn<Record> fn = () -> {
       String cwd = System.getProperty("user.dir");
       System.out.println("cwd = " + cwd);
       System.out.println("record = " + record);
 
       String env = System.getenv().entrySet().stream()
           .map(e -> e.getKey() + "=" + e.getValue())
+          .peek(System.out::println)
           .collect(Collectors.joining(", "));
 
       return new Record(record.foo + " world in " + env, record.bar + 100);
     };
 
-    final Storage storage = StorageOptions.getDefaultInstance().getService();
     final ContainerEngineCluster cluster = containerEngineCluster("datawhere-test", "us-east1-d", "hype-test");
-    final Submitter submitter = Submitter.create(storage, args[0], CPI, cluster);
-
-    RunEnvironment env = environment(
+    final Submitter submitter = Submitter.create(args[0], cluster);
+    final RunEnvironment env = environment(
         "us.gcr.io/datawhere-test/hype-runner:5",
         secret("gcp-key", "/etc/gcloud"));
 

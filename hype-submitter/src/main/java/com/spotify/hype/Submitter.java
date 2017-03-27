@@ -20,12 +20,14 @@
 
 package com.spotify.hype;
 
+import static com.spotify.hype.ClasspathInspector.forLoader;
 import static com.spotify.hype.runner.RunSpec.runSpec;
 import static java.util.stream.Collectors.toList;
 
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.Bucket;
 import com.google.cloud.storage.Storage;
+import com.google.cloud.storage.StorageOptions;
 import com.google.common.base.Throwables;
 import com.spotify.hype.runner.DockerRunner;
 import com.spotify.hype.runner.RunSpec;
@@ -75,18 +77,24 @@ public class Submitter {
   private static final ForkJoinPool FJP = new ForkJoinPool(32);
 
   private final Storage storage;
-  private final String bucketName;
   private final ClasspathInspector classpathInspector;
+  private final String bucketName;
   private final ContainerEngineCluster cluster;
 
+  public static Submitter create(String bucketName, ContainerEngineCluster cluster) {
+    final ClasspathInspector classpathInspector = forLoader(Submitter.class.getClassLoader());
+    final Storage storage = StorageOptions.getDefaultInstance().getService();
+    return create(storage, classpathInspector, bucketName, cluster);
+  }
+
   public static Submitter create(
-      Storage storage, String bucketName, ClasspathInspector classpathInspector,
-      ContainerEngineCluster cluster) {
-    return new Submitter(storage, bucketName, classpathInspector, cluster);
+      Storage storage, ClasspathInspector classpathInspector,
+      String bucketName, ContainerEngineCluster cluster) {
+    return new Submitter(storage, classpathInspector, bucketName, cluster);
   }
 
   private Submitter(
-      Storage storage, String bucketName, ClasspathInspector classpathInspector,
+      Storage storage, ClasspathInspector classpathInspector, String bucketName,
       ContainerEngineCluster cluster) {
     this.storage = Objects.requireNonNull(storage);
     this.bucketName = Objects.requireNonNull(bucketName);
@@ -99,8 +107,7 @@ public class Submitter {
     final StagedContinuation stagedContinuation = stageContinuation(fn);
 
     // 2. submit and wait for k8s pod (returns return value uri, termination log, etc)
-    // todo: move parts of this into env conf
-    RunSpec runSpec = runSpec(environment, stagedContinuation);
+    final RunSpec runSpec = runSpec(environment, stagedContinuation);
 
     try (KubernetesClient kubernetesClient = DockerRunner.createKubernetesClient(cluster)) {
       final DockerRunner kubernetes = DockerRunner.kubernetes(kubernetesClient);
