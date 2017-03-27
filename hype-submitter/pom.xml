@@ -69,7 +69,7 @@
         <artifactId>capsule-maven-plugin</artifactId>
         <version>1.5.0</version>
         <configuration>
-          <appClass>com.spotify.hype.Test</appClass>
+          <appClass>com.spotify.hype.Example</appClass>
           <type>fat</type>
         </configuration>
         <executions>

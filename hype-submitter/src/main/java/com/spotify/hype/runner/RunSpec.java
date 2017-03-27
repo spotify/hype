@@ -21,25 +21,23 @@
 package com.spotify.hype.runner;
 
 import com.google.auto.value.AutoValue;
+import com.spotify.hype.StagedContinuation;
 
 @AutoValue
 public abstract class RunSpec {
 
   public abstract String imageName();
 
-  public abstract String stagingLocation();
-
-  public abstract String functionFile();
+  public abstract StagedContinuation stagedContinuation();
 
   public abstract Secret secret();
 
-  public static RunSpec create(
+  public static RunSpec runSpec(
       String imageName,
-      String stagingLocation,
-      String functionFile,
+      StagedContinuation stagedContinuation,
       Secret secret
   ) {
-    return new AutoValue_RunSpec(imageName, stagingLocation, functionFile, secret);
+    return new AutoValue_RunSpec(imageName, stagedContinuation, secret);
   }
 
   @AutoValue

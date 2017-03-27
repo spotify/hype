@@ -20,17 +20,20 @@
 
 package com.spotify.hype.runner;
 
+import static com.spotify.hype.ContainerEngineCluster.containerEngineCluster;
+import static com.spotify.hype.StagedContinuation.stagedContinuation;
 import static com.spotify.hype.runner.RunSpec.Secret.secret;
+import static com.spotify.hype.runner.RunSpec.runSpec;
 
 import com.google.api.client.googleapis.auth.oauth2.GoogleCredential;
 import com.google.api.services.container.Container;
 import com.google.api.services.container.ContainerScopes;
 import com.google.api.services.container.model.Cluster;
 import com.google.common.base.Throwables;
+import com.spotify.hype.ContainerEngineCluster;
 import io.fabric8.kubernetes.client.ConfigBuilder;
 import io.fabric8.kubernetes.client.DefaultKubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClient;
-import java.io.Closeable;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Optional;
@@ -40,7 +43,7 @@ import org.slf4j.LoggerFactory;
 /**
  * Defines an interface to the Docker execution environment
  */
-public interface DockerRunner extends Closeable {
+public interface DockerRunner {
 
   Logger LOG = LoggerFactory.getLogger(DockerRunner.class);
 
@@ -50,7 +53,7 @@ public interface DockerRunner extends Closeable {
    * @param runSpec     Specification of what to run
    * @return Optionally a uri pointing to the gcs location of the return value
    */
-  Optional<URI> run(RunSpec runSpec) throws IOException;
+  Optional<URI> run(RunSpec runSpec);
 
   /**
    * A local runner
@@ -66,20 +69,21 @@ public interface DockerRunner extends Closeable {
   }
 
   static void main(String[] args) throws IOException {
-    final KubernetesClient kubernetesClient = createKubernetesClient();
+    ContainerEngineCluster cluster = containerEngineCluster("datawhere-test", "us-east1-d", "hype-test");
+    final KubernetesClient kubernetesClient = createKubernetesClient(cluster);
     final DockerRunner kubernetes = DockerRunner.kubernetes(kubernetesClient);
 
-    final RunSpec runSpec =
-        RunSpec.create(
-            "us.gcr.io/datawhere-test/hype-runner:4",
-            "gs://rouz-test/spotify-hype-staging",
-            "continuation-4857074019514830262.bin",
-            secret("gcp-key", "/etc/gcloud"));
+    final RunSpec runSpec = runSpec(
+        "us.gcr.io/datawhere-test/hype-runner:4",
+        stagedContinuation(
+            URI.create("gs://rouz-test/spotify-hype-staging"),
+            "continuation-4857074019514830262.bin"),
+        secret("gcp-key", "/etc/gcloud"));
 
     kubernetes.run(runSpec);
   }
 
-  static KubernetesClient createKubernetesClient() {
+  static KubernetesClient createKubernetesClient(ContainerEngineCluster gkeCluster) {
     try {
       final GoogleCredential credential = GoogleCredential.getApplicationDefault()
           .createScoped(ContainerScopes.all());
@@ -88,7 +92,8 @@ public interface DockerRunner extends Closeable {
           .build();
 
       final Cluster cluster = gke.projects().zones().clusters()
-          .get("datawhere-test", "us-east1-d", "hype-test").execute();
+          .get(gkeCluster.project(), gkeCluster.zone(), gkeCluster.cluster())
+          .execute();
 
       final io.fabric8.kubernetes.client.Config kubeConfig = new ConfigBuilder()
           .withMasterUrl("https://" + cluster.getEndpoint())

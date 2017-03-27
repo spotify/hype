@@ -33,7 +33,6 @@ import io.fabric8.kubernetes.api.model.VolumeMount;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.fabric8.kubernetes.client.dsl.ClientPodResource;
-import java.io.IOException;
 import java.net.URI;
 import java.util.Objects;
 import java.util.Optional;
@@ -48,7 +47,7 @@ class KubernetesDockerRunner implements DockerRunner {
   private static final String HYPE_RUN = "hype-run";
   private static final String ALPHA_NUMERIC_STRING = "abcdefghijklmnopqrstuvwxyz0123456789";
   private static final String EXECUTION_ID = "HYPE_EXECUTION_ID";
-  private static final int POLL_PODS_INTERVAL_SECONDS = 60;
+  private static final int POLL_PODS_INTERVAL_SECONDS = 5;
 
   private final KubernetesClient client;
 
@@ -57,7 +56,7 @@ class KubernetesDockerRunner implements DockerRunner {
   }
 
   @Override
-  public Optional<URI> run(RunSpec runSpec) throws IOException {
+  public Optional<URI> run(RunSpec runSpec) {
     try {
       final Pod pod = client.pods().create(createPod(runSpec));
       final String podName = pod.getMetadata().getName();
@@ -65,9 +64,9 @@ class KubernetesDockerRunner implements DockerRunner {
       client.pods().withName(podName).delete();
       return uri;
     } catch (KubernetesClientException kce) {
-      throw new IOException("Failed to create Kubernetes pod", kce);
+      throw new RuntimeException("Failed to create Kubernetes pod", kce);
     } catch (InterruptedException e) {
-      throw new IOException("Interrupted while blocking", e);
+      throw new RuntimeException("Interrupted while blocking", e);
     }
   }
 
@@ -93,7 +92,9 @@ class KubernetesDockerRunner implements DockerRunner {
         .addNewContainer()
             .withName(HYPE_RUN)
             .withImage(imageWithTag)
-            .withArgs(ImmutableList.of(runSpec.stagingLocation(), runSpec.functionFile()))
+            .withArgs(ImmutableList.of(
+                runSpec.stagedContinuation().stageLocation().toString(),
+                runSpec.stagedContinuation().continuationFileName()))
             .withEnv(envVarExecution);
 
     RunSpec.Secret secret = runSpec.secret();
@@ -144,11 +145,6 @@ class KubernetesDockerRunner implements DockerRunner {
       }
       Thread.sleep(TimeUnit.SECONDS.toMillis(POLL_PODS_INTERVAL_SECONDS));
     }
-  }
-
-  @Override
-  public void close() throws IOException {
-    client.close();
   }
 
   private static String randomAlphaNumeric(int count) {

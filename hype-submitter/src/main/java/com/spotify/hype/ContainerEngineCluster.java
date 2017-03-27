@@ -20,29 +20,16 @@
 
 package com.spotify.hype;
 
-import static java.util.Collections.emptyList;
-
 import com.google.auto.value.AutoValue;
-import java.net.URI;
-import java.util.List;
 
 @AutoValue
-public abstract class StagedContinuation {
+public abstract class ContainerEngineCluster {
 
-  public abstract URI stageLocation();
-  public abstract List<URI> stagedFiles();
-  public abstract String continuationFileName();
+  public abstract String project();
+  public abstract String zone();
+  public abstract String cluster();
 
-  public static StagedContinuation stagedContinuation(
-      URI stageLocation,
-      List<URI> stagedFiles,
-      String continuationFileName) {
-    return new AutoValue_StagedContinuation(stageLocation, stagedFiles, continuationFileName);
-  }
-
-  public static StagedContinuation stagedContinuation(
-      URI stageLocation,
-      String continuationFileName) {
-    return new AutoValue_StagedContinuation(stageLocation, emptyList(), continuationFileName);
+  public static ContainerEngineCluster containerEngineCluster(String project, String zone, String cluster) {
+    return new AutoValue_ContainerEngineCluster(project, zone, cluster);
   }
 }

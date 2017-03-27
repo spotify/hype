@@ -31,7 +31,6 @@ import com.spotify.docker.client.messages.ContainerInfo;
 import com.spotify.docker.client.messages.HostConfig;
 import com.spotify.docker.client.messages.HostConfig.Bind;
 import com.spotify.docker.client.messages.Image;
-import java.io.IOException;
 import java.net.URI;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
@@ -91,7 +90,9 @@ class LocalDockerRunner implements DockerRunner {
 
       final ContainerConfig containerConfig = ContainerConfig.builder()
           .image(imageTag)
-          .cmd(ImmutableList.of(runSpec.stagingLocation(), runSpec.functionFile()))
+          .cmd(ImmutableList.of(
+              runSpec.stagedContinuation().stageLocation().toString(),
+              runSpec.stagedContinuation().continuationFileName()))
           .hostConfig(hostConfig)
           .build();
       creation = client.createContainer(containerConfig);
@@ -127,10 +128,5 @@ class LocalDockerRunner implements DockerRunner {
 
       Thread.sleep(TimeUnit.SECONDS.toMillis(CHECK_INTERVAL));
     }
-  }
-
-  @Override
-  public void close() throws IOException {
-    client.close();
   }
 }

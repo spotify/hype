@@ -20,23 +20,36 @@
 
 package com.spotify.hype;
 
+import static com.spotify.hype.runner.RunSpec.runSpec;
 import static java.util.stream.Collectors.toList;
 
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.Bucket;
 import com.google.cloud.storage.Storage;
 import com.google.common.base.Throwables;
+import com.spotify.hype.runner.DockerRunner;
+import com.spotify.hype.runner.RunSpec;
 import com.spotify.hype.util.Fn;
 import com.spotify.hype.util.SerializationUtil;
+import io.fabric8.kubernetes.client.KubernetesClient;
+import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.ByteBuffer;
+import java.nio.channels.Channels;
+import java.nio.channels.ReadableByteChannel;
+import java.nio.channels.WritableByteChannel;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ForkJoinPool;
 import org.slf4j.Logger;
@@ -64,27 +77,51 @@ public class Submitter {
   private final Storage storage;
   private final String bucketName;
   private final ClasspathInspector classpathInspector;
+  private final ContainerEngineCluster cluster;
+  private final RunSpec.Secret secret;
 
   public static Submitter create(
-      Storage storage, String bucketName, ClasspathInspector classpathInspector) {
-    return new Submitter(storage, bucketName, classpathInspector);
+      Storage storage, String bucketName, ClasspathInspector classpathInspector,
+      ContainerEngineCluster cluster, RunSpec.Secret secret) {
+    return new Submitter(storage, bucketName, classpathInspector, cluster, secret);
   }
 
-  private Submitter(Storage storage, String bucketName, ClasspathInspector classpathInspector) {
+  private Submitter(
+      Storage storage, String bucketName, ClasspathInspector classpathInspector,
+      ContainerEngineCluster cluster, RunSpec.Secret secret) {
     this.storage = Objects.requireNonNull(storage);
     this.bucketName = Objects.requireNonNull(bucketName);
     this.classpathInspector = Objects.requireNonNull(classpathInspector);
+    this.cluster = cluster;
+    this.secret = secret;
   }
 
-  public <T> T runOnCluster(Fn<T> fn, String cluster) {
+  public <T> T runOnCluster(Fn<T> fn) {
     // 1. stage
     final StagedContinuation stagedContinuation = stageContinuation(fn);
 
     // 2. submit and wait for k8s pod (returns return value uri, termination log, etc)
-    // 3. download serialized return value
-    // 4. deserialize and return
+    // todo: move parts of this into env conf
+    RunSpec runSpec = runSpec(
+        "us.gcr.io/datawhere-test/hype-runner:5",
+        stagedContinuation,
+        secret);
 
-    return null;
+    try (KubernetesClient kubernetesClient = DockerRunner.createKubernetesClient(cluster)) {
+      final DockerRunner kubernetes = DockerRunner.kubernetes(kubernetesClient);
+      final Optional<URI> returnUri = kubernetes.run(runSpec);
+
+      // 3. download serialized return value
+      if (returnUri.isPresent()) {
+        final Path path = downloadFile(returnUri.get());
+
+        // 4. deserialize and return
+        //noinspection unchecked
+        return (T) SerializationUtil.readObject(path);
+      } else {
+        throw new RuntimeException("Failed to get return value");
+      }
+    }
   }
 
   public StagedContinuation stageContinuation(Fn<?> fn) {
@@ -102,7 +139,7 @@ public class Submitter {
       throw Throwables.propagate(e);
     }
 
-    return StagedContinuation.create(stageLocation, stagedFiles, continuationFileName);
+    return StagedContinuation.stagedContinuation(stageLocation, stagedFiles, continuationFileName);
   }
 
   public List<URI> stageFiles(List<Path> files, Path prefix) {
@@ -134,5 +171,43 @@ public class Submitter {
     } catch (URISyntaxException | IOException e) {
       throw Throwables.propagate(e);
     }
+  }
+
+  private Path downloadFile(URI uri) {
+    final String bucket =  uri.getAuthority();
+    final String blobId = uri.getPath().substring(1); // remove leading '/'
+    final Blob blob = storage.get(bucket, blobId);
+
+    final Path localFilePath;
+    try {
+      final Path temp = Files.createTempDirectory("hype-submit");
+      final String localFileName = Paths.get(blob.getName()).getFileName().toString();
+      localFilePath = temp.resolve(localFileName);
+    } catch (IOException e) {
+      throw Throwables.propagate(e);
+    }
+
+    try (OutputStream bos = new BufferedOutputStream(new FileOutputStream(localFilePath.toFile()))) {
+      try (ReadableByteChannel reader = blob.reader()) {
+        final WritableByteChannel writer = Channels.newChannel(bos);
+        final ByteBuffer buffer = ByteBuffer.allocate(8192);
+
+        int read;
+        while ((read = reader.read(buffer)) > 0) {
+          buffer.rewind();
+          buffer.limit(read);
+
+          while (read > 0) {
+            read -= writer.write(buffer);
+          }
+
+          buffer.clear();
+        }
+      }
+    } catch (IOException e) {
+      throw Throwables.propagate(e);
+    }
+
+    return localFilePath;
   }
 }

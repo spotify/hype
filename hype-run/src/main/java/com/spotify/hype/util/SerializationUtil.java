@@ -66,14 +66,14 @@ public class SerializationUtil {
     }
   }
 
-  private static Object readObject(Path continuationPath) {
+  public static Object readObject(Path object) {
     Kryo kryo = new Kryo();
     kryo.register(java.lang.invoke.SerializedLambda.class);
     kryo.register(ClosureSerializer.Closure.class, new ClosureSerializer());
     kryo.setInstantiatorStrategy(new Kryo.DefaultInstantiatorStrategy(new StdInstantiatorStrategy()));
 
 
-    File file = continuationPath.toFile();
+    File file = object.toFile();
 
     try (Input input = new Input(new FileInputStream(file))) {
       return kryo.readClassAndObject(input);
