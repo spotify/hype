@@ -44,11 +44,13 @@ public class Example {
       return new Record(record.foo + " world in " + env, record.bar + 100);
     };
 
-    final ContainerEngineCluster cluster = containerEngineCluster("datawhere-test", "us-east1-d", "hype-test");
-    final Submitter submitter = Submitter.create(args[0], cluster);
+    final ContainerEngineCluster cluster = containerEngineCluster(
+        "datawhere-test", "us-east1-d", "hype-test");
     final RunEnvironment env = environment(
         "us.gcr.io/datawhere-test/hype-runner:5",
         secret("gcp-key", "/etc/gcloud"));
+
+    final Submitter submitter = Submitter.create(args[0], cluster);
 
     final Record returnRecord = submitter.runOnCluster(fn, env);
     System.out.println("returnRecord = " + returnRecord);

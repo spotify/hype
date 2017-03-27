@@ -21,6 +21,7 @@
 package com.spotify.hype;
 
 import static com.spotify.hype.ClasspathInspector.forLoader;
+import static com.spotify.hype.StagedContinuation.stagedContinuation;
 import static com.spotify.hype.runner.RunSpec.runSpec;
 import static java.util.stream.Collectors.toList;
 
@@ -141,7 +142,7 @@ public class Submitter {
       throw Throwables.propagate(e);
     }
 
-    return StagedContinuation.stagedContinuation(stageLocation, stagedFiles, continuationFileName);
+    return stagedContinuation(stageLocation, stagedFiles, continuationFileName);
   }
 
   public List<URI> stageFiles(List<Path> files, Path prefix) {

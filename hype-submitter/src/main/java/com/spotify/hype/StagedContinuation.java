@@ -20,8 +20,6 @@
 
 package com.spotify.hype;
 
-import static java.util.Collections.emptyList;
-
 import com.google.auto.value.AutoValue;
 import java.net.URI;
 import java.util.List;
@@ -38,11 +36,5 @@ public abstract class StagedContinuation {
       List<URI> stagedFiles,
       String continuationFileName) {
     return new AutoValue_StagedContinuation(stageLocation, stagedFiles, continuationFileName);
-  }
-
-  public static StagedContinuation stagedContinuation(
-      URI stageLocation,
-      String continuationFileName) {
-    return new AutoValue_StagedContinuation(stageLocation, emptyList(), continuationFileName);
   }
 }
