@@ -20,11 +20,6 @@
 
 package com.spotify.hype.runner;
 
-import static com.spotify.hype.ContainerEngineCluster.containerEngineCluster;
-import static com.spotify.hype.StagedContinuation.stagedContinuation;
-import static com.spotify.hype.runner.RunSpec.Secret.secret;
-import static com.spotify.hype.runner.RunSpec.runSpec;
-
 import com.google.api.client.googleapis.auth.oauth2.GoogleCredential;
 import com.google.api.services.container.Container;
 import com.google.api.services.container.ContainerScopes;
@@ -55,32 +50,8 @@ public interface DockerRunner {
    */
   Optional<URI> run(RunSpec runSpec);
 
-  /**
-   * A local runner
-   *
-   * @return A locally operating docker runner
-   */
-  static DockerRunner local() {
-    return new LocalDockerRunner();
-  }
-
   static DockerRunner kubernetes(KubernetesClient kubernetesClient) {
     return new KubernetesDockerRunner(kubernetesClient);
-  }
-
-  static void main(String[] args) throws IOException {
-    ContainerEngineCluster cluster = containerEngineCluster("datawhere-test", "us-east1-d", "hype-test");
-    final KubernetesClient kubernetesClient = createKubernetesClient(cluster);
-    final DockerRunner kubernetes = DockerRunner.kubernetes(kubernetesClient);
-
-    final RunSpec runSpec = runSpec(
-        "us.gcr.io/datawhere-test/hype-runner:4",
-        stagedContinuation(
-            URI.create("gs://rouz-test/spotify-hype-staging"),
-            "continuation-4857074019514830262.bin"),
-        secret("gcp-key", "/etc/gcloud"));
-
-    kubernetes.run(runSpec);
   }
 
   static KubernetesClient createKubernetesClient(ContainerEngineCluster gkeCluster) {

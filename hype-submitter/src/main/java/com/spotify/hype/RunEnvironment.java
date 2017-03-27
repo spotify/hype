@@ -18,21 +18,27 @@
  * -/-/-
  */
 
-package com.spotify.hype.runner;
+package com.spotify.hype;
 
 import com.google.auto.value.AutoValue;
-import com.spotify.hype.RunEnvironment;
-import com.spotify.hype.StagedContinuation;
 
 @AutoValue
-public abstract class RunSpec {
+public abstract class RunEnvironment {
 
-  public abstract RunEnvironment runEnvironment();
-  public abstract StagedContinuation stagedContinuation();
+  public abstract String image();
+  public abstract Secret secret();
 
-  public static RunSpec runSpec(
-      RunEnvironment runEnvironment,
-      StagedContinuation stagedContinuation) {
-    return new AutoValue_RunSpec(runEnvironment, stagedContinuation);
+  @AutoValue
+  public abstract static class Secret {
+    public abstract String name();
+    public abstract String mountPath();
+  }
+
+  public static RunEnvironment environment(String image, Secret secret) {
+    return new AutoValue_RunEnvironment(image, secret);
+  }
+
+  public static Secret secret(String name, String mountPath) {
+    return new AutoValue_RunEnvironment_Secret(name, mountPath);
   }
 }

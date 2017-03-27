@@ -21,11 +21,11 @@
 package com.spotify.hype;
 
 import static com.spotify.hype.ContainerEngineCluster.containerEngineCluster;
-import static com.spotify.hype.runner.RunSpec.Secret.secret;
+import static com.spotify.hype.RunEnvironment.environment;
+import static com.spotify.hype.RunEnvironment.secret;
 
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageOptions;
-import com.spotify.hype.runner.RunSpec;
 import com.spotify.hype.util.Fn;
 import java.util.stream.Collectors;
 
@@ -50,10 +50,13 @@ public class Example {
 
     final Storage storage = StorageOptions.getDefaultInstance().getService();
     final ContainerEngineCluster cluster = containerEngineCluster("datawhere-test", "us-east1-d", "hype-test");
-    final RunSpec.Secret secret = secret("gcp-key", "/etc/gcloud");
-    final Submitter submitter = Submitter.create(storage, args[0], CPI, cluster, secret);
+    final Submitter submitter = Submitter.create(storage, args[0], CPI, cluster);
 
-    final Record returnRecord = submitter.runOnCluster(fn);
+    RunEnvironment env = environment(
+        "us.gcr.io/datawhere-test/hype-runner:5",
+        secret("gcp-key", "/etc/gcloud"));
+
+    final Record returnRecord = submitter.runOnCluster(fn, env);
     System.out.println("returnRecord = " + returnRecord);
   }
 

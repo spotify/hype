@@ -78,34 +78,29 @@ public class Submitter {
   private final String bucketName;
   private final ClasspathInspector classpathInspector;
   private final ContainerEngineCluster cluster;
-  private final RunSpec.Secret secret;
 
   public static Submitter create(
       Storage storage, String bucketName, ClasspathInspector classpathInspector,
-      ContainerEngineCluster cluster, RunSpec.Secret secret) {
-    return new Submitter(storage, bucketName, classpathInspector, cluster, secret);
+      ContainerEngineCluster cluster) {
+    return new Submitter(storage, bucketName, classpathInspector, cluster);
   }
 
   private Submitter(
       Storage storage, String bucketName, ClasspathInspector classpathInspector,
-      ContainerEngineCluster cluster, RunSpec.Secret secret) {
+      ContainerEngineCluster cluster) {
     this.storage = Objects.requireNonNull(storage);
     this.bucketName = Objects.requireNonNull(bucketName);
     this.classpathInspector = Objects.requireNonNull(classpathInspector);
-    this.cluster = cluster;
-    this.secret = secret;
+    this.cluster = Objects.requireNonNull(cluster);
   }
 
-  public <T> T runOnCluster(Fn<T> fn) {
+  public <T> T runOnCluster(Fn<T> fn, RunEnvironment environment) {
     // 1. stage
     final StagedContinuation stagedContinuation = stageContinuation(fn);
 
     // 2. submit and wait for k8s pod (returns return value uri, termination log, etc)
     // todo: move parts of this into env conf
-    RunSpec runSpec = runSpec(
-        "us.gcr.io/datawhere-test/hype-runner:5",
-        stagedContinuation,
-        secret);
+    RunSpec runSpec = runSpec(environment, stagedContinuation);
 
     try (KubernetesClient kubernetesClient = DockerRunner.createKubernetesClient(cluster)) {
       final DockerRunner kubernetes = DockerRunner.kubernetes(kubernetesClient);

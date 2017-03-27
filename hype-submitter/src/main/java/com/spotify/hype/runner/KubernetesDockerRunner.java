@@ -21,6 +21,8 @@
 package com.spotify.hype.runner;
 
 import com.google.common.collect.ImmutableList;
+import com.spotify.hype.RunEnvironment;
+import com.spotify.hype.StagedContinuation;
 import io.fabric8.kubernetes.api.model.ContainerStatus;
 import io.fabric8.kubernetes.api.model.DoneablePod;
 import io.fabric8.kubernetes.api.model.EnvVar;
@@ -71,18 +73,19 @@ class KubernetesDockerRunner implements DockerRunner {
   }
 
   private static Pod createPod(RunSpec runSpec) {
-    final String imageWithTag = runSpec.imageName().contains(":")
-        ? runSpec.imageName()
-        : runSpec.imageName() + ":latest";
-
     final String podName = HYPE_RUN + "-" + randomAlphaNumeric(16);
+    final RunEnvironment env = runSpec.runEnvironment();
+    final StagedContinuation stagedContinuation = runSpec.stagedContinuation();
+    final String imageWithTag = env.image().contains(":")
+        ? env.image()
+        : env.image() + ":latest";
 
     // inject environment variables
-    EnvVar envVarExecution = new EnvVar();
+    final EnvVar envVarExecution = new EnvVar();
     envVarExecution.setName(EXECUTION_ID);
     envVarExecution.setValue(podName);
 
-    PodBuilder podBuilder = new PodBuilder()
+    final PodBuilder podBuilder = new PodBuilder()
         .withNewMetadata()
         .withName(podName)
         .endMetadata();
@@ -93,11 +96,11 @@ class KubernetesDockerRunner implements DockerRunner {
             .withName(HYPE_RUN)
             .withImage(imageWithTag)
             .withArgs(ImmutableList.of(
-                runSpec.stagedContinuation().stageLocation().toString(),
-                runSpec.stagedContinuation().continuationFileName()))
+                stagedContinuation.stageLocation().toString(),
+                stagedContinuation.continuationFileName()))
             .withEnv(envVarExecution);
 
-    RunSpec.Secret secret = runSpec.secret();
+    final RunEnvironment.Secret secret = env.secret();
     spec = spec.addNewVolume()
         .withName(secret.name())
         .withNewSecret()
