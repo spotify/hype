@@ -21,6 +21,7 @@
 package com.spotify.hype.runner;
 
 import com.google.common.collect.ImmutableList;
+import io.fabric8.kubernetes.api.model.ContainerStatus;
 import io.fabric8.kubernetes.api.model.DoneablePod;
 import io.fabric8.kubernetes.api.model.EnvVar;
 import io.fabric8.kubernetes.api.model.Pod;
@@ -28,12 +29,14 @@ import io.fabric8.kubernetes.api.model.PodBuilder;
 import io.fabric8.kubernetes.api.model.PodFluent;
 import io.fabric8.kubernetes.api.model.PodSpecFluent;
 import io.fabric8.kubernetes.api.model.PodStatus;
+import io.fabric8.kubernetes.api.model.VolumeMount;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.fabric8.kubernetes.client.dsl.ClientPodResource;
 import java.io.IOException;
+import java.net.URI;
 import java.util.Objects;
-import java.util.UUID;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -43,6 +46,7 @@ class KubernetesDockerRunner implements DockerRunner {
 
   private static final String NAMESPACE = "default";
   private static final String HYPE_RUN = "hype-run";
+  private static final String ALPHA_NUMERIC_STRING = "abcdefghijklmnopqrstuvwxyz0123456789";
   private static final String EXECUTION_ID = "HYPE_EXECUTION_ID";
   private static final int POLL_PODS_INTERVAL_SECONDS = 60;
 
@@ -53,13 +57,13 @@ class KubernetesDockerRunner implements DockerRunner {
   }
 
   @Override
-  public String run(RunSpec runSpec) throws IOException {
+  public Optional<URI> run(RunSpec runSpec) throws IOException {
     try {
       final Pod pod = client.pods().create(createPod(runSpec));
       final String podName = pod.getMetadata().getName();
-      blockUntilComplete(podName);
+      Optional<URI> uri = blockUntilComplete(podName);
       client.pods().withName(podName).delete();
-      return podName;
+      return uri;
     } catch (KubernetesClientException kce) {
       throw new IOException("Failed to create Kubernetes pod", kce);
     } catch (InterruptedException e) {
@@ -72,7 +76,7 @@ class KubernetesDockerRunner implements DockerRunner {
         ? runSpec.imageName()
         : runSpec.imageName() + ":latest";
 
-    final String podName = HYPE_RUN + "-" + UUID.randomUUID().toString();
+    final String podName = HYPE_RUN + "-" + randomAlphaNumeric(16);
 
     // inject environment variables
     EnvVar envVarExecution = new EnvVar();
@@ -92,23 +96,49 @@ class KubernetesDockerRunner implements DockerRunner {
             .withArgs(ImmutableList.of(runSpec.stagingLocation(), runSpec.functionFile()))
             .withEnv(envVarExecution);
 
+    RunSpec.Secret secret = runSpec.secret();
+    spec = spec.addNewVolume()
+        .withName(secret.name())
+        .withNewSecret()
+        .withSecretName(secret.name())
+        .endSecret()
+        .endVolume();
+    container = container
+        .addToVolumeMounts(new VolumeMount(secret.mountPath(), secret.name(), true));
+
     container.endContainer();
     return spec.endSpec().build();
   }
 
-  private void blockUntilComplete(final String podName) throws InterruptedException {
+  private Optional<URI> blockUntilComplete(final String podName) throws InterruptedException {
     LOG.debug("Checking running statuses");
 
     while (true) {
-
       final ClientPodResource<Pod, DoneablePod> pod = client.pods().withName(podName);
       final PodStatus status = pod.get().getStatus();
 
       switch (status.getPhase()) {
         case "Succeeded":
-        case "Failed":
-          LOG.info("Kubernetes pod {} exited with status", podName, status.getPhase());
+          LOG.info("Kubernetes pod {} exited with status {}", podName, status.getPhase());
+
+          final Optional<ContainerStatus> containerStatus = status.getContainerStatuses().stream()
+              .filter(c -> HYPE_RUN.equals(c.getName()))
+              .findFirst();
+
+          final Optional<String> terminated = containerStatus
+              .flatMap(s -> Optional.ofNullable(s.getState().getTerminated()))
+              .flatMap(t -> Optional.ofNullable(t.getMessage()));
+
+          if (terminated.isPresent()) {
+            String message = terminated.get();
+            LOG.info("Got termination message: {}", message);
+            return Optional.of(URI.create(message));
+          }
           break;
+
+        case "Failed":
+          return Optional.empty();
+
         default:
           break;
       }
@@ -119,5 +149,14 @@ class KubernetesDockerRunner implements DockerRunner {
   @Override
   public void close() throws IOException {
     client.close();
+  }
+
+  private static String randomAlphaNumeric(int count) {
+    StringBuilder builder = new StringBuilder();
+    while (count-- != 0) {
+      int character = (int)(Math.random() * ALPHA_NUMERIC_STRING.length());
+      builder.append(ALPHA_NUMERIC_STRING.charAt(character));
+    }
+    return builder.toString();
   }
 }

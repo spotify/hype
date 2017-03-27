@@ -20,17 +20,20 @@
 
 package com.spotify.hype.runner;
 
+import static com.spotify.hype.runner.RunSpec.Secret.secret;
+
 import com.google.api.client.googleapis.auth.oauth2.GoogleCredential;
 import com.google.api.services.container.Container;
 import com.google.api.services.container.ContainerScopes;
 import com.google.api.services.container.model.Cluster;
-import com.google.auto.value.AutoValue;
 import com.google.common.base.Throwables;
 import io.fabric8.kubernetes.client.ConfigBuilder;
 import io.fabric8.kubernetes.client.DefaultKubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import java.io.Closeable;
 import java.io.IOException;
+import java.net.URI;
+import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,30 +48,9 @@ public interface DockerRunner extends Closeable {
    * Runs a hype execution. Blocks until complete.
    *
    * @param runSpec     Specification of what to run
-   * @return The execution id for the docker instance which ran.
+   * @return Optionally a uri pointing to the gcs location of the return value
    */
-  String run(RunSpec runSpec) throws IOException;
-
-  @AutoValue
-  abstract class RunSpec {
-
-    public abstract String imageName();
-
-    public abstract String stagingLocation();
-
-    public abstract String functionFile();
-
-    public abstract String jsonKeyPath();
-
-    public static RunSpec create(
-        String imageName,
-        String stagingLocation,
-        String functionFile,
-        String jsonKeyPath
-    ) {
-      return new AutoValue_DockerRunner_RunSpec(imageName, stagingLocation, functionFile, jsonKeyPath);
-    }
-  }
+  Optional<URI> run(RunSpec runSpec) throws IOException;
 
   /**
    * A local runner
@@ -84,17 +66,16 @@ public interface DockerRunner extends Closeable {
   }
 
   static void main(String[] args) throws IOException {
-    // Need to inject environment variables such as
     final KubernetesClient kubernetesClient = createKubernetesClient();
     final DockerRunner kubernetes = DockerRunner.kubernetes(kubernetesClient);
-    final DockerRunner local = DockerRunner.local();
 
     final RunSpec runSpec =
         RunSpec.create(
-            "hype-runner",
+            "us.gcr.io/datawhere-test/hype-runner:4",
             "gs://rouz-test/spotify-hype-staging",
-            "continuation-7495030347410371367.bin",
-            "/home/robertg/installs/discover-weekly.json");
+            "continuation-4857074019514830262.bin",
+            secret("gcp-key", "/etc/gcloud"));
+
     kubernetes.run(runSpec);
   }
 

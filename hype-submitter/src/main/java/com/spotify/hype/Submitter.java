@@ -43,10 +43,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * TODO: document.
- *
  * todo: hash file contents and dedupe uploads
  * todo: write explicit file list to gcs (allows for deduped & multi-use staging location)
+ *
+ * todo: Resource requests (cpu, mem)
+ *       https://kubernetes.io/docs/concepts/policy/resource-quotas/
+
+ * todo: gcePersistentDisk mounting
+ * todo: PD scheduling (create r/w mode, pass along to other jobs, use OpProvider?)
+ *       https://kubernetes.io/docs/concepts/storage/volumes/#gcepersistentdisk
  */
 public class Submitter {
 
@@ -71,8 +76,19 @@ public class Submitter {
     this.classpathInspector = Objects.requireNonNull(classpathInspector);
   }
 
+  public <T> T runOnCluster(Fn<T> fn, String cluster) {
+    // 1. stage
+    final StagedContinuation stagedContinuation = stageContinuation(fn);
+
+    // 2. submit and wait for k8s pod (returns return value uri, termination log, etc)
+    // 3. download serialized return value
+    // 4. deserialize and return
+
+    return null;
+  }
+
   public StagedContinuation stageContinuation(Fn<?> fn) {
-    final List<Path> files = classpathInspector.localClasspathJars();
+    final List<Path> files = classpathInspector.classpathJars();
     final Path continuationPath = SerializationUtil.serializeContinuation(fn);
     final String continuationFileName = continuationPath.getFileName().toString();
     files.add(continuationPath.toAbsolutePath());

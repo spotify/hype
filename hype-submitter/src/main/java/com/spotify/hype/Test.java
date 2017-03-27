@@ -36,9 +36,9 @@ import java.util.concurrent.ExecutionException;
 public class Test {
 
   public static void main(String[] args) {
-    final ClasspathInspector classpathInspector = new LocalClasspathInspector(Test.class);
+    final ClasspathInspector classpathInspector = ClasspathInspector.forClass(Test.class);
 
-    final List<Path> files = classpathInspector.localClasspathJars();
+    final List<Path> files = classpathInspector.classpathJars();
     final Task<String> task = Task.named("foo").ofType(String.class)
         .process(() -> "hello");
 

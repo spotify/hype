@@ -24,5 +24,13 @@ import java.nio.file.Path;
 import java.util.List;
 
 public interface ClasspathInspector {
-  List<Path> localClasspathJars();
+  List<Path> classpathJars();
+
+  static ClasspathInspector forClass(Class<?> cls) {
+    return new LocalClasspathInspector(cls);
+  }
+
+  static ClasspathInspector forLoader(ClassLoader classLoader) {
+    return new LocalClasspathInspector(classLoader);
+  }
 }
