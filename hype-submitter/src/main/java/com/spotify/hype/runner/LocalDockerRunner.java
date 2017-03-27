@@ -32,6 +32,8 @@ import com.spotify.docker.client.messages.HostConfig;
 import com.spotify.docker.client.messages.HostConfig.Bind;
 import com.spotify.docker.client.messages.Image;
 import java.io.IOException;
+import java.net.URI;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -59,7 +61,7 @@ class LocalDockerRunner implements DockerRunner {
   }
 
   @Override
-  public String run(RunSpec runSpec) {
+  public Optional<URI> run(RunSpec runSpec) {
     final String imageTag = runSpec.imageName().contains(":")
         ? runSpec.imageName()
         : runSpec.imageName() + ":latest";
@@ -81,8 +83,8 @@ class LocalDockerRunner implements DockerRunner {
 
       final HostConfig hostConfig =
           HostConfig.builder()
-              .appendBinds(Bind.from(runSpec.jsonKeyPath())
-                               .to("/etc/gcloud/key.json")
+              .appendBinds(Bind.from(runSpec.secret().name())
+                               .to(runSpec.secret().mountPath() + "/key.json")
                                .readOnly(true)
                                .build())
           .build();
@@ -101,7 +103,8 @@ class LocalDockerRunner implements DockerRunner {
     }
 
     LOG.info("Container completed with id " + creation.id());
-    return creation.id();
+//    return creation.id();
+    throw new UnsupportedOperationException();
   }
 
   private void blockUntilComplete(final String containerId) throws InterruptedException {

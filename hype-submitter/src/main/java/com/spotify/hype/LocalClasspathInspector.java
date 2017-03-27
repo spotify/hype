@@ -33,21 +33,21 @@ import java.util.stream.Stream;
 import org.jhades.model.ClasspathEntry;
 import org.jhades.service.ClasspathScanner;
 
-public class LocalClasspathInspector implements ClasspathInspector {
+class LocalClasspathInspector implements ClasspathInspector {
 
   private final ClasspathScanner scanner = new ClasspathScanner();
   private final ClassLoader classLoader;
 
-  public LocalClasspathInspector(ClassLoader classLoader) {
+  LocalClasspathInspector(ClassLoader classLoader) {
     this.classLoader = Objects.requireNonNull(classLoader);
   }
 
-  public LocalClasspathInspector(Class<?> clazz) {
+  LocalClasspathInspector(Class<?> clazz) {
     this.classLoader = Objects.requireNonNull(clazz).getClassLoader();
   }
 
   @Override
-  public List<Path> localClasspathJars() {
+  public List<Path> classpathJars() {
     return localClasspath().stream()
         .map(entry -> Paths.get(URI.create(entry.getUrl())).toAbsolutePath())
         .collect(Collectors.toList());

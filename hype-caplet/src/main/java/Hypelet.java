@@ -20,6 +20,10 @@
 
 import static com.google.cloud.storage.Bucket.BlobWriteOption.doesNotExist;
 import static com.google.cloud.storage.Storage.BlobListOption.prefix;
+import static com.google.common.base.Charsets.UTF_8;
+import static java.nio.file.StandardOpenOption.CREATE;
+import static java.nio.file.StandardOpenOption.TRUNCATE_EXISTING;
+import static java.nio.file.StandardOpenOption.WRITE;
 
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.Bucket;
@@ -45,6 +49,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ForkJoinPool;
 
@@ -64,6 +69,9 @@ public class Hypelet extends Capsule {
   private static final String NOOP_MODE = "noop";
   private static final String STAGING_PREFIX = "hype-run-";
   private static final String APPLICATION_OCTET_STREAM = "application/octet-stream";
+  private static final String ALPHA_NUMERIC_STRING = "abcdefghijklmnopqrstuvwxyz0123456789";
+  private static final String TERMINATION_LOG = "/dev/termination-log";
+  private static final String HYPE_EXECUTION_ID = "HYPE_EXECUTION_ID";
 
   private static final ForkJoinPool FJP = new ForkJoinPool(32);
 
@@ -88,11 +96,13 @@ public class Hypelet extends Capsule {
       throw new IllegalArgumentException("Usage: <gcs-staging-uri> <continuation-file>");
     }
 
+    System.out.println("=== HYPE RUN CAPSULE (v" + getVersion() + ") ===");
+
     try {
       storage = StorageOptions.getDefaultInstance().getService();
       stagingPrefix = URI.create(args.get(0));
       stagingDir = Files.createTempDirectory(STAGING_PREFIX);
-      returnFile = args.get(1).replaceFirst("\\.bin", "-return.bin");
+      returnFile = args.get(1).replaceFirst("\\.bin", "-" + getRunId() + "-return.bin");
 
       try {
         downloadFiles(stagingPrefix, stagingDir);
@@ -115,8 +125,20 @@ public class Hypelet extends Capsule {
     if (stagingDir != null) {
       final Path returnFilePath = stagingDir.resolve(returnFile);
       if (Files.exists(returnFilePath)) {
-        System.out.println("Upload serialized return value: " + returnFilePath);
-        upload(returnFilePath.toFile(), stagingPrefix);
+        System.out.println("Uploading serialized return value: " + returnFilePath);
+        final URI uploadUri = upload(returnFilePath.toFile(), stagingPrefix);
+        System.out.println("Uploaded to: " + uploadUri);
+
+        // write the uploaded uri to the termination log if it exists
+        final Path terminationLog = Paths.get(TERMINATION_LOG);
+        if (Files.exists(terminationLog)) {
+          final byte[] terminationMessage = uploadUri.toString().getBytes(UTF_8);
+          try {
+            Files.write(terminationLog, terminationMessage, CREATE, WRITE, TRUNCATE_EXISTING);
+          } catch (IOException e) {
+            throw Throwables.propagate(e);
+          }
+        }
       }
     }
 
@@ -215,5 +237,30 @@ public class Hypelet extends Capsule {
     } catch (URISyntaxException | IOException e) {
       throw Throwables.propagate(e);
     }
+  }
+
+  private static String getVersion() {
+    Properties props = new Properties();
+    try {
+      props.load(Hypelet.class.getResourceAsStream("/version.properties"));
+    } catch (IOException e) {
+      throw Throwables.propagate(e);
+    }
+    return props.getProperty("hypelet.version");
+  }
+
+  private static String getRunId() {
+    return System.getenv().containsKey(HYPE_EXECUTION_ID)
+        ? System.getenv(HYPE_EXECUTION_ID)
+        : randomAlphaNumeric(16);
+  }
+
+  private static String randomAlphaNumeric(int count) {
+    StringBuilder builder = new StringBuilder();
+    while (count-- != 0) {
+      int character = (int)(Math.random() * ALPHA_NUMERIC_STRING.length());
+      builder.append(ALPHA_NUMERIC_STRING.charAt(character));
+    }
+    return builder.toString();
   }
 }
