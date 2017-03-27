@@ -25,23 +25,22 @@ import static com.spotify.hype.RunEnvironment.environment;
 import static com.spotify.hype.RunEnvironment.secret;
 
 import com.spotify.hype.util.Fn;
+import java.util.List;
 import java.util.stream.Collectors;
 
 public class Example {
 
   public static void main(String[] args) {
     final Record record = new Record("hello", 42);
-    final Fn<Record> fn = () -> {
+    final Fn<List<String>> fn = () -> {
       String cwd = System.getProperty("user.dir");
       System.out.println("cwd = " + cwd);
       System.out.println("record = " + record);
 
-      String env = System.getenv().entrySet().stream()
+      return System.getenv().entrySet().stream()
           .map(e -> e.getKey() + "=" + e.getValue())
           .peek(System.out::println)
-          .collect(Collectors.joining(", "));
-
-      return new Record(record.foo + " world in " + env, record.bar + 100);
+          .collect(Collectors.toList());
     };
 
     final ContainerEngineCluster cluster = containerEngineCluster(
@@ -52,8 +51,8 @@ public class Example {
 
     final Submitter submitter = Submitter.create(args[0], cluster);
 
-    final Record returnRecord = submitter.runOnCluster(fn, env);
-    System.out.println("returnRecord = " + returnRecord);
+    final List<String> ret = submitter.runOnCluster(fn, env);
+    System.out.println("ret = " + ret);
   }
 
   private static class Record {
