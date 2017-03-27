@@ -43,7 +43,7 @@ ContainerEngineCluster cluster = containerEngineCluster(
     "gcp-project-id", "gce-zone-id", "gke-cluster-id"); // modify these
 
 RunEnvironment env = environment(
-    "us.gcr.io/datawhere-test/hype-runner:5", // the env image we created earlier
+    "gcr.io/gcp-project-id/env-image", // the env image we created earlier
     secret("gcp-key", "/etc/gcloud")); // a pre-created k8s secret volume named "gcp-key"
 
 Submitter submitter = Submitter.create('my-staging-bucket', cluster);
