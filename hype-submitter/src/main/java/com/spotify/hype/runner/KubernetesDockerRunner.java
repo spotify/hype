@@ -62,6 +62,8 @@ class KubernetesDockerRunner implements DockerRunner {
     try {
       final Pod pod = client.pods().create(createPod(runSpec));
       final String podName = pod.getMetadata().getName();
+      LOG.info("Created pod {}", podName);
+
       Optional<URI> uri = blockUntilComplete(podName);
       client.pods().withName(podName).delete();
       return uri;
@@ -141,6 +143,7 @@ class KubernetesDockerRunner implements DockerRunner {
           break;
 
         case "Failed":
+          LOG.info("Kubernetes pod {} failed with status {}", podName, status);
           return Optional.empty();
 
         default:

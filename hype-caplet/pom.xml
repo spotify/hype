@@ -8,7 +8,6 @@
   </parent>
 
   <artifactId>hype-caplet</artifactId>
-  <version>0.0.7-SNAPSHOT</version>
 
   <properties>
     <gcloud.version>0.9.4-beta</gcloud.version>

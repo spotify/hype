@@ -17,9 +17,10 @@
   <url>https://github.com/spotify/hype</url>
 
   <modules>
-    <module>hype-submitter</module>
-    <module>hype-run</module>
     <module>hype-caplet</module>
+    <module>hype-run</module>
+    <module>hype-submitter</module>
+    <module>hype-testing</module>
   </modules>
 
   <properties>
@@ -65,11 +66,6 @@
 
   <dependencyManagement>
     <dependencies>
-      <dependency>
-        <groupId>io.rouz</groupId>
-        <artifactId>flo-workflow</artifactId>
-        <version>${flo.version}</version>
-      </dependency>
       <dependency>
         <groupId>org.jhades</groupId>
         <artifactId>jhades</artifactId>

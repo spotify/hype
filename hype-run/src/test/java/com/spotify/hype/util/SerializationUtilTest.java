@@ -35,9 +35,7 @@ public class SerializationUtilTest {
   @Test
   public void roundtripLambda() throws Exception {
     Fn<String> fn = () -> inner.sup.get();
-
-    Path path = SerializationUtil.serializeContinuation(fn);
-    Fn<String> fn1 = (Fn<String>) SerializationUtil.readContinuation(path);
+    Fn<String> fn1 = roundtrip(fn);
 
     inner.field = "something else";
     String result = fn1.run();
@@ -45,9 +43,27 @@ public class SerializationUtilTest {
     assertEquals("hello", result);
   }
 
+  @Test
+  public void roundtripClosure() throws Exception {
+    Fn<String> fn = closure("hello");
+    Fn<String> fn1 = roundtrip(fn);
+
+    String result = fn1.run();
+    assertEquals("hello", result);
+  }
+
+  private Fn<String> roundtrip(Fn<String> fn) {
+    Path path = SerializationUtil.serializeContinuation(fn);
+    return (Fn<String>) SerializationUtil.readContinuation(path);
+  }
+
   // this class is intentionally not implementing java.io.Serializable
   class Inner {
     String field = "hello";
     Supplier<String> sup = (Supplier & Serializable) () -> field;
+  }
+
+  private static Fn<String> closure(String arg) {
+    return () -> arg;
   }
 }

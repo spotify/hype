@@ -60,11 +60,11 @@ import org.slf4j.LoggerFactory;
 
 /**
  * todo: hash file contents and dedupe uploads
- * todo: write explicit file list to gcs (allows for deduped & multi-use staging location)
+ * todo: write explicit file list to gcs (allows for deduped and multi-use staging location)
  *
  * todo: Resource requests (cpu, mem)
  *       https://kubernetes.io/docs/concepts/policy/resource-quotas/
-
+ *
  * todo: gcePersistentDisk mounting
  * todo: PD scheduling (create r/w mode, pass along to other jobs, use OpProvider?)
  *       https://kubernetes.io/docs/concepts/storage/volumes/#gcepersistentdisk
@@ -110,6 +110,7 @@ public class Submitter {
     // 2. submit and wait for k8s pod (returns return value uri, termination log, etc)
     final RunSpec runSpec = runSpec(environment, stagedContinuation);
 
+    LOG.info("Submitting to {}", environment);
     try (KubernetesClient kubernetesClient = DockerRunner.createKubernetesClient(cluster)) {
       final DockerRunner kubernetes = DockerRunner.kubernetes(kubernetesClient);
       final Optional<URI> returnUri = kubernetes.run(runSpec);

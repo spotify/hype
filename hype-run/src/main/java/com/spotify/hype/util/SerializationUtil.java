@@ -24,6 +24,7 @@ import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 import com.esotericsoftware.kryo.serializers.ClosureSerializer;
+import com.twitter.chill.AllScalaRegistrar;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -55,6 +56,7 @@ public class SerializationUtil {
     Kryo kryo = new Kryo();
     kryo.register(java.lang.invoke.SerializedLambda.class);
     kryo.register(ClosureSerializer.Closure.class, new ClosureSerializer());
+    new AllScalaRegistrar().apply(kryo);
 
     try {
       final File file = outputPath.toFile();
@@ -71,7 +73,7 @@ public class SerializationUtil {
     kryo.register(java.lang.invoke.SerializedLambda.class);
     kryo.register(ClosureSerializer.Closure.class, new ClosureSerializer());
     kryo.setInstantiatorStrategy(new Kryo.DefaultInstantiatorStrategy(new StdInstantiatorStrategy()));
-
+    new AllScalaRegistrar().apply(kryo);
 
     File file = object.toFile();
 
