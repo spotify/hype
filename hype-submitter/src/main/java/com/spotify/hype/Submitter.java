@@ -23,13 +23,17 @@ package com.spotify.hype;
 import static com.spotify.hype.ClasspathInspector.forLoader;
 import static com.spotify.hype.StagedContinuation.stagedContinuation;
 import static com.spotify.hype.runner.RunSpec.runSpec;
+import static java.util.concurrent.TimeUnit.MINUTES;
 import static java.util.stream.Collectors.toList;
 
+import com.google.auto.value.AutoValue;
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.Bucket;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageOptions;
-import com.google.common.base.Throwables;
+import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.SettableFuture;
 import com.spotify.hype.runner.DockerRunner;
 import com.spotify.hype.runner.RunSpec;
 import com.spotify.hype.util.Fn;
@@ -53,7 +57,8 @@ import java.nio.file.Paths;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ForkJoinPool;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -76,6 +81,9 @@ public class Submitter {
   private static final String GCS_STAGING_PREFIX = "spotify-hype-staging";
   private static final String APPLICATION_OCTET_STREAM = "application/octet-stream";
   private static final ForkJoinPool FJP = new ForkJoinPool(32);
+  private static final long UPLOAD_TIMEOUT_MINUTES = 10;
+  private static final ConcurrentMap<UploadPair, ListenableFuture<URI>> UPLOAD_CACHE =
+      new ConcurrentHashMap<>();
 
   private final Storage storage;
   private final ClasspathInspector classpathInspector;
@@ -111,20 +119,19 @@ public class Submitter {
     final RunSpec runSpec = runSpec(environment, stagedContinuation);
 
     LOG.info("Submitting to {}", environment);
-    try (KubernetesClient kubernetesClient = DockerRunner.createKubernetesClient(cluster)) {
-      final DockerRunner kubernetes = DockerRunner.kubernetes(kubernetesClient);
-      final Optional<URI> returnUri = kubernetes.run(runSpec);
+    final KubernetesClient kubernetesClient = getClient(cluster);
+    final DockerRunner kubernetes = DockerRunner.kubernetes(kubernetesClient);
+    final Optional<URI> returnUri = kubernetes.run(runSpec);
 
-      // 3. download serialized return value
-      if (returnUri.isPresent()) {
-        final Path path = downloadFile(returnUri.get());
+    // 3. download serialized return value
+    if (returnUri.isPresent()) {
+      final Path path = downloadFile(returnUri.get());
 
-        // 4. deserialize and return
-        //noinspection unchecked
-        return (T) SerializationUtil.readObject(path);
-      } else {
-        throw new RuntimeException("Failed to get return value");
-      }
+      // 4. deserialize and return
+      //noinspection unchecked
+      return (T) SerializationUtil.readObject(path);
+    } else {
+      throw new RuntimeException("Failed to get return value");
     }
   }
 
@@ -135,46 +142,59 @@ public class Submitter {
     files.add(continuationPath.toAbsolutePath());
 
     final Path prefix = Paths.get(GCS_STAGING_PREFIX /* ,todo prefix */);
-    final List<URI> stagedFiles = stageFiles(files, prefix);
+    final List<URI> stagedFiles;
+    try {
+      stagedFiles = stageFiles(files, prefix);
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+
     final URI stageLocation;
     try {
       stageLocation = new URI("gs", bucketName, "/" + prefix.toString(), null);
     } catch (URISyntaxException e) {
-      throw Throwables.propagate(e);
+      throw new RuntimeException(e);
     }
 
     return stagedContinuation(stageLocation, stagedFiles, continuationFileName);
   }
 
-  public List<URI> stageFiles(List<Path> files, Path prefix) {
+  public List<URI> stageFiles(List<Path> files, Path prefix) throws IOException {
     LOG.info("Staging {} files", files.size());
 
-    try {
-      return FJP.submit(
-        () -> files.parallelStream()
-            .map(file -> upload(prefix, file))
-            .collect(toList()))
-        .get();
-    } catch (InterruptedException | ExecutionException e) {
-      throw Throwables.propagate(e);
-    }
+    final List<ListenableFuture<URI>> uploadFutures = files.stream()
+        .map(file -> upload(prefix, file))
+        .collect(toList());
+
+    return Futures.get(
+        Futures.allAsList(uploadFutures),
+        UPLOAD_TIMEOUT_MINUTES, MINUTES,
+        IOException.class);
   }
 
-  private URI upload(Path prefix, Path file) {
+  private ListenableFuture<URI> upload(Path prefix, Path file) {
+    return UPLOAD_CACHE.computeIfAbsent(uploadPair(prefix, file), this::upload);
+  }
+
+  private ListenableFuture<URI> upload(UploadPair uploadPair) {
+    final File file = uploadPair.file().toFile();
+    final Path prefix = uploadPair.prefix();
+    final SettableFuture<URI> future = SettableFuture.create();
     LOG.debug("Staging {} in GCS bucket {}", file, bucketName);
-    return upload(file.toFile(), storage, bucketName, prefix);
-  }
 
-  private static URI upload(File file, Storage storage, String bucketName, Path prefix) {
-    try (FileInputStream inputStream = new FileInputStream(file)) {
-      Bucket bucket = storage.get(bucketName);
-      String blobName = prefix.resolve(file.getName()).toString();
-      Blob blob = bucket.create(blobName, inputStream, APPLICATION_OCTET_STREAM);
+    FJP.submit(() -> {
+      try (FileInputStream inputStream = new FileInputStream(file)) {
+        Bucket bucket = storage.get(bucketName);
+        String blobName = prefix.resolve(file.getName()).toString();
+        Blob blob = bucket.create(blobName, inputStream, APPLICATION_OCTET_STREAM);
 
-      return new URI("gs", blob.getBucket(), "/" + blob.getName(), null);
-    } catch (URISyntaxException | IOException e) {
-      throw Throwables.propagate(e);
-    }
+        future.set(new URI("gs", blob.getBucket(), "/" + blob.getName(), null));
+      } catch (URISyntaxException | IOException e) {
+        future.setException(e);
+      }
+    });
+
+    return future;
   }
 
   private Path downloadFile(URI uri) {
@@ -188,7 +208,7 @@ public class Submitter {
       final String localFileName = Paths.get(blob.getName()).getFileName().toString();
       localFilePath = temp.resolve(localFileName);
     } catch (IOException e) {
-      throw Throwables.propagate(e);
+      throw new RuntimeException(e);
     }
 
     try (OutputStream bos = new BufferedOutputStream(new FileOutputStream(localFilePath.toFile()))) {
@@ -209,9 +229,28 @@ public class Submitter {
         }
       }
     } catch (IOException e) {
-      throw Throwables.propagate(e);
+      throw new RuntimeException(e);
     }
 
     return localFilePath;
+  }
+
+  private static KubernetesClient client;
+  private static synchronized KubernetesClient getClient(ContainerEngineCluster cluster) {
+    if (client == null) {
+      client = DockerRunner.createKubernetesClient(cluster);
+    }
+
+    return client;
+  }
+
+  @AutoValue
+  public static abstract class UploadPair {
+    abstract Path prefix();
+    abstract Path file();
+  }
+
+  static UploadPair uploadPair(Path prefix, Path file) {
+    return new AutoValue_Submitter_UploadPair(prefix, file);
   }
 }
