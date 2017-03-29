@@ -56,6 +56,10 @@ docker container while running on the cluster.
 
 ---
 
+![Overview](hype.png)
+
+---
+
 _This project is in early development stages, expect anything you see to change._
 
 [Docker]: https://www.docker.com
