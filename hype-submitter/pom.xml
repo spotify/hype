@@ -17,10 +17,6 @@
     </dependency>
 
     <dependency>
-      <groupId>com.spotify</groupId>
-      <artifactId>docker-client</artifactId>
-    </dependency>
-    <dependency>
       <groupId>io.fabric8</groupId>
       <artifactId>kubernetes-client</artifactId>
     </dependency>
@@ -41,10 +37,6 @@
       <groupId>com.google.apis</groupId>
       <artifactId>google-api-services-container</artifactId>
     </dependency>
-    <dependency>
-      <groupId>ch.qos.logback</groupId>
-      <artifactId>logback-classic</artifactId>
-    </dependency>
 
     <dependency>
       <groupId>com.google.guava</groupId>
@@ -58,6 +50,22 @@
 
   <build>
     <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-shade-plugin</artifactId>
+        <version>3.0.0</version>
+        <executions>
+          <execution>
+            <phase>package</phase>
+            <goals>
+              <goal>shade</goal>
+            </goals>
+            <configuration>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
       <plugin>
         <groupId>com.github.chrisdchristo</groupId>
         <artifactId>capsule-maven-plugin</artifactId>
