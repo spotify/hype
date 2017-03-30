@@ -92,7 +92,7 @@ class KubernetesDockerRunner implements DockerRunner {
         .withName(podName)
         .endMetadata();
     PodFluent.SpecNested<PodBuilder> spec = podBuilder.withNewSpec()
-        .withRestartPolicy("Never");
+        .withRestartPolicy("OnFailure");
     PodSpecFluent.ContainersNested<PodFluent.SpecNested<PodBuilder>> container = spec
         .addNewContainer()
             .withName(HYPE_RUN)
