@@ -20,22 +20,41 @@
 
 package com.spotify.hype.runner;
 
+import static com.spotify.hype.Util.randomAlphaNumeric;
+import static java.util.function.Function.identity;
+import static java.util.stream.Collectors.toList;
+import static java.util.stream.Collectors.toMap;
+
 import com.google.common.collect.ImmutableList;
 import com.spotify.hype.RunEnvironment;
+import com.spotify.hype.Secret;
 import com.spotify.hype.StagedContinuation;
+import com.spotify.hype.VolumeMount;
+import com.spotify.hype.VolumeRequest;
+import io.fabric8.kubernetes.api.model.Container;
+import io.fabric8.kubernetes.api.model.ContainerBuilder;
 import io.fabric8.kubernetes.api.model.ContainerStatus;
 import io.fabric8.kubernetes.api.model.DoneablePod;
-import io.fabric8.kubernetes.api.model.EnvVar;
+import io.fabric8.kubernetes.api.model.PersistentVolumeClaim;
+import io.fabric8.kubernetes.api.model.PersistentVolumeClaimBuilder;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.PodBuilder;
-import io.fabric8.kubernetes.api.model.PodFluent;
-import io.fabric8.kubernetes.api.model.PodSpecFluent;
+import io.fabric8.kubernetes.api.model.PodSpec;
+import io.fabric8.kubernetes.api.model.PodSpecBuilder;
 import io.fabric8.kubernetes.api.model.PodStatus;
-import io.fabric8.kubernetes.api.model.VolumeMount;
+import io.fabric8.kubernetes.api.model.Quantity;
+import io.fabric8.kubernetes.api.model.ResourceRequirements;
+import io.fabric8.kubernetes.api.model.ResourceRequirementsBuilder;
+import io.fabric8.kubernetes.api.model.Volume;
+import io.fabric8.kubernetes.api.model.VolumeBuilder;
+import io.fabric8.kubernetes.api.model.VolumeMountBuilder;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.fabric8.kubernetes.client.dsl.ClientPodResource;
+import io.norberg.automatter.AutoMatter;
 import java.net.URI;
+import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
@@ -47,8 +66,13 @@ class KubernetesDockerRunner implements DockerRunner {
 
   private static final String NAMESPACE = "default";
   private static final String HYPE_RUN = "hype-run";
-  private static final String ALPHA_NUMERIC_STRING = "abcdefghijklmnopqrstuvwxyz0123456789";
   private static final String EXECUTION_ID = "HYPE_EXECUTION_ID";
+
+  private static final String STORAGE_CLASS_ANNOTATION = "volume.beta.kubernetes.io/storage-class";
+  private static final String VOLUME_CLAIM_PREFIX = "hype-claim-";
+  private static final String READ_WRITE_ONCE = "ReadWriteOnce";
+  private static final String READ_ONLY_MANY = "ReadOnlyMany";
+
   private static final int POLL_PODS_INTERVAL_SECONDS = 5;
 
   private final KubernetesClient client;
@@ -74,46 +98,126 @@ class KubernetesDockerRunner implements DockerRunner {
     }
   }
 
-  private static Pod createPod(RunSpec runSpec) {
+  private PersistentVolumeClaim createClaim(VolumeRequest volumeRequest) {
+    final ResourceRequirements resources = new ResourceRequirementsBuilder()
+        .addToRequests("storage", new Quantity(volumeRequest.size()))
+        .build();
+
+    final PersistentVolumeClaim claimTemplate = new PersistentVolumeClaimBuilder()
+        .withNewMetadata()
+            .withGenerateName(VOLUME_CLAIM_PREFIX)
+            .addToAnnotations(STORAGE_CLASS_ANNOTATION, volumeRequest.storageClass())
+        .endMetadata()
+        .withNewSpec()
+            // todo: storageClassName: <class> // in 1.6
+            .withAccessModes(READ_WRITE_ONCE, READ_ONLY_MANY)
+            .withResources(resources)
+        .endSpec()
+        .build();
+
+    final PersistentVolumeClaim claim = client.persistentVolumeClaims().create(claimTemplate);
+    LOG.info("Created PersistentVolumeClaim {} for {}",
+        claim.getMetadata().getName(),
+        volumeRequest);
+
+    return claim;
+  }
+
+  private VolumeMountInfo volumeMountInfo(PersistentVolumeClaim claim, VolumeMount volumeMount) {
+    final String claimName = claim.getMetadata().getName();
+
+    final Volume volume = new VolumeBuilder()
+        .withName(claimName)
+        .withNewPersistentVolumeClaim(claimName, volumeMount.readOnly())
+        .build();
+
+    final io.fabric8.kubernetes.api.model.VolumeMount mount = new VolumeMountBuilder()
+        .withName(claimName)
+        .withMountPath(volumeMount.mountPath())
+        .withReadOnly(volumeMount.readOnly())
+        .build();
+
+    final String ro = volumeMount.readOnly() ? "readOnly" : "readWrite";
+    LOG.info("Mounting {} {} at {}", claimName, ro, volumeMount.mountPath());
+
+    return new VolumeMountInfoBuilder()
+        .persistentVolumeClaim(claim)
+        .volume(volume)
+        .volumeMount(mount)
+        .build();
+  }
+
+  private List<VolumeMountInfo> volumeMountInfos(List<VolumeMount> volumeMounts) {
+    final Map<VolumeRequest, PersistentVolumeClaim> claims = volumeMounts.stream()
+        .map(VolumeMount::volumeRequest)
+        .distinct()
+        .collect(toMap(identity(), this::createClaim));
+
+    return volumeMounts.stream()
+        .map(volumeMount -> volumeMountInfo(claims.get(volumeMount.volumeRequest()), volumeMount))
+        .collect(toList());
+  }
+
+  private Pod createPod(RunSpec runSpec) {
     final String podName = HYPE_RUN + "-" + randomAlphaNumeric(8);
     final RunEnvironment env = runSpec.runEnvironment();
+    final Secret secret = env.secretMount();
     final StagedContinuation stagedContinuation = runSpec.stagedContinuation();
+
     final String imageWithTag = env.image().contains(":")
         ? env.image()
         : env.image() + ":latest";
 
-    // inject environment variables
-    final EnvVar envVarExecution = new EnvVar();
-    envVarExecution.setName(EXECUTION_ID);
-    envVarExecution.setValue(podName);
+    // todo: max retry limit
 
-    final PodBuilder podBuilder = new PodBuilder()
+    // todo: set from env
+//    final ResourceRequirements resources = new ResourceRequirementsBuilder()
+//        .addToRequests("cpu", new Quantity("1000m"))
+//        .build();
+
+    final List<VolumeMountInfo> volumeMountInfos = volumeMountInfos(env.volumeMounts());
+
+    final Container container = new ContainerBuilder()
+        .withName(HYPE_RUN)
+        .withImage(imageWithTag)
+        .withArgs(ImmutableList.of(
+            stagedContinuation.stageLocation().toString(),
+            stagedContinuation.continuationFileName()))
+        .addNewEnv()
+            .withName(EXECUTION_ID)
+            .withValue(podName)
+        .endEnv()
+//        .withResources(resources)
+        .addNewVolumeMount()
+            .withName(secret.name())
+            .withMountPath(secret.mountPath())
+            .withReadOnly(true)
+        .endVolumeMount()
+        .build();
+
+    volumeMountInfos.stream()
+        .map(VolumeMountInfo::volumeMount)
+        .forEach(container.getVolumeMounts()::add);
+
+    final PodSpec spec = new PodSpecBuilder()
+        .withRestartPolicy("OnFailure")
+        .addToContainers(container)
+        .addNewVolume()
+            .withName(secret.name())
+            .withNewSecret(secret.name())
+        .endVolume()
+        .build();
+
+    volumeMountInfos.stream()
+        .map(VolumeMountInfo::volume)
+        .forEach(spec.getVolumes()::add);
+
+    return new PodBuilder()
         .withNewMetadata()
-        .withName(podName)
-        .endMetadata();
-    PodFluent.SpecNested<PodBuilder> spec = podBuilder.withNewSpec()
-        .withRestartPolicy("OnFailure");
-    PodSpecFluent.ContainersNested<PodFluent.SpecNested<PodBuilder>> container = spec
-        .addNewContainer()
-            .withName(HYPE_RUN)
-            .withImage(imageWithTag)
-            .withArgs(ImmutableList.of(
-                stagedContinuation.stageLocation().toString(),
-                stagedContinuation.continuationFileName()))
-            .withEnv(envVarExecution);
-
-    final RunEnvironment.Secret secret = env.secret();
-    spec = spec.addNewVolume()
-        .withName(secret.name())
-        .withNewSecret()
-        .withSecretName(secret.name())
-        .endSecret()
-        .endVolume();
-    container = container
-        .addToVolumeMounts(new VolumeMount(secret.mountPath(), secret.name(), true));
-
-    container.endContainer();
-    return spec.endSpec().build();
+            .withName(podName)
+        .endMetadata()
+        .withSpec(spec)
+        .build();
   }
 
   private Optional<URI> blockUntilComplete(final String podName) throws InterruptedException {
@@ -153,12 +257,10 @@ class KubernetesDockerRunner implements DockerRunner {
     }
   }
 
-  private static String randomAlphaNumeric(int count) {
-    StringBuilder builder = new StringBuilder();
-    while (count-- != 0) {
-      int character = (int)(Math.random() * ALPHA_NUMERIC_STRING.length());
-      builder.append(ALPHA_NUMERIC_STRING.charAt(character));
-    }
-    return builder.toString();
+  @AutoMatter
+  interface VolumeMountInfo {
+    PersistentVolumeClaim persistentVolumeClaim();
+    Volume volume();
+    io.fabric8.kubernetes.api.model.VolumeMount volumeMount();
   }
 }

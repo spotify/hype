@@ -20,25 +20,26 @@
 
 package com.spotify.hype;
 
-import com.google.auto.value.AutoValue;
+import io.norberg.automatter.AutoMatter;
+import java.util.List;
 
-@AutoValue
-public abstract class RunEnvironment {
+@AutoMatter
+public interface RunEnvironment {
 
-  public abstract String image();
-  public abstract Secret secret();
+  String image();
+  Secret secretMount();
+  List<VolumeMount> volumeMounts();
 
-  @AutoValue
-  public abstract static class Secret {
-    public abstract String name();
-    public abstract String mountPath();
+  static RunEnvironment environment(String image, Secret secret) {
+    return new RunEnvironmentBuilder()
+        .image(image)
+        .secretMount(secret)
+        .build();
   }
 
-  public static RunEnvironment environment(String image, Secret secret) {
-    return new AutoValue_RunEnvironment(image, secret);
-  }
-
-  public static Secret secret(String name, String mountPath) {
-    return new AutoValue_RunEnvironment_Secret(name, mountPath);
+  default RunEnvironment withMount(VolumeMount volumeMount) {
+    return RunEnvironmentBuilder.from(this)
+        .addVolumeMount(volumeMount)
+        .build();
   }
 }

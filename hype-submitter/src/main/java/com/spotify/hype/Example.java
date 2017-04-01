@@ -22,7 +22,8 @@ package com.spotify.hype;
 
 import static com.spotify.hype.ContainerEngineCluster.containerEngineCluster;
 import static com.spotify.hype.RunEnvironment.environment;
-import static com.spotify.hype.RunEnvironment.secret;
+import static com.spotify.hype.Secret.secret;
+import static com.spotify.hype.VolumeRequest.volumeRequest;
 
 import com.spotify.hype.util.Fn;
 import java.util.List;
@@ -45,13 +46,21 @@ public class Example {
 
     final ContainerEngineCluster cluster = containerEngineCluster(
         "datawhere-test", "us-east1-d", "hype-test");
-    final RunEnvironment env = environment(
-        "us.gcr.io/datawhere-test/hype-runner:5",
-        secret("gcp-key", "/etc/gcloud"));
 
     final Submitter submitter = Submitter.create(args[0], cluster);
 
-    final List<String> ret = submitter.runOnCluster(fn, env);
+    // create a volume request from a predefined storage class with name 'slow'
+    final VolumeRequest request = volumeRequest("slow", "10Gi");
+    final VolumeMount volumeMount = request.mountReadWrite("/usr/share/volume");
+
+    final RunEnvironment environment = environment(
+        "us.gcr.io/datawhere-test/hype-runner:5",
+        secret("gcp-key", "/etc/gcloud"));
+
+    final RunEnvironment envWithMount = environment
+        .withMount(volumeMount);
+
+    final List<String> ret = submitter.runOnCluster(fn, envWithMount);
     System.out.println("ret = " + ret);
   }
 

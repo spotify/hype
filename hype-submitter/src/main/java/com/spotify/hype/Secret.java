@@ -21,24 +21,17 @@
 package com.spotify.hype;
 
 import io.norberg.automatter.AutoMatter;
-import java.net.URI;
-import java.util.List;
 
 @AutoMatter
-public interface StagedContinuation {
+public interface Secret {
 
-  URI stageLocation();
-  List<URI> stagedFiles();
-  String continuationFileName();
+  String name();
+  String mountPath();
 
-  static StagedContinuation stagedContinuation(
-      URI stageLocation,
-      List<URI> stagedFiles,
-      String continuationFileName) {
-    return new StagedContinuationBuilder()
-        .stageLocation(stageLocation)
-        .stagedFiles(stagedFiles)
-        .continuationFileName(continuationFileName)
+  static Secret secret(String name, String mountPath) {
+    return new SecretBuilder()
+        .name(name)
+        .mountPath(mountPath)
         .build();
   }
 }

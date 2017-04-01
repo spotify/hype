@@ -22,8 +22,8 @@
     </dependency>
 
     <dependency>
-      <groupId>com.google.auto.value</groupId>
-      <artifactId>auto-value</artifactId>
+      <groupId>io.norberg</groupId>
+      <artifactId>auto-matter</artifactId>
     </dependency>
     <dependency>
       <groupId>org.jhades</groupId>
@@ -61,6 +61,7 @@
               <goal>shade</goal>
             </goals>
             <configuration>
+              <!-- should we relocate dependencies? (google clients) -->
             </configuration>
           </execution>
         </executions>

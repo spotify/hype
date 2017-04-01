@@ -20,16 +20,20 @@
 
 package com.spotify.hype;
 
-import com.google.auto.value.AutoValue;
+import io.norberg.automatter.AutoMatter;
 
-@AutoValue
-public abstract class ContainerEngineCluster {
+@AutoMatter
+public interface ContainerEngineCluster {
 
-  public abstract String project();
-  public abstract String zone();
-  public abstract String cluster();
+  String project();
+  String zone();
+  String cluster();
 
-  public static ContainerEngineCluster containerEngineCluster(String project, String zone, String cluster) {
-    return new AutoValue_ContainerEngineCluster(project, zone, cluster);
+  static ContainerEngineCluster containerEngineCluster(String project, String zone, String cluster) {
+    return new ContainerEngineClusterBuilder()
+        .project(project)
+        .zone(zone)
+        .cluster(cluster)
+        .build();
   }
 }

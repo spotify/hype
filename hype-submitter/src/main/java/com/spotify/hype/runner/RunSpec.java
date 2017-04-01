@@ -20,19 +20,22 @@
 
 package com.spotify.hype.runner;
 
-import com.google.auto.value.AutoValue;
 import com.spotify.hype.RunEnvironment;
 import com.spotify.hype.StagedContinuation;
+import io.norberg.automatter.AutoMatter;
 
-@AutoValue
-public abstract class RunSpec {
+@AutoMatter
+public interface RunSpec {
 
-  public abstract RunEnvironment runEnvironment();
-  public abstract StagedContinuation stagedContinuation();
+  RunEnvironment runEnvironment();
+  StagedContinuation stagedContinuation();
 
-  public static RunSpec runSpec(
+  static RunSpec runSpec(
       RunEnvironment runEnvironment,
       StagedContinuation stagedContinuation) {
-    return new AutoValue_RunSpec(runEnvironment, stagedContinuation);
+    return new RunSpecBuilder()
+        .runEnvironment(runEnvironment)
+        .stagedContinuation(stagedContinuation)
+        .build();
   }
 }

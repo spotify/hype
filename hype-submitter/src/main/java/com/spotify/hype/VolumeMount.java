@@ -21,24 +21,23 @@
 package com.spotify.hype;
 
 import io.norberg.automatter.AutoMatter;
-import java.net.URI;
-import java.util.List;
 
+/**
+ * A binding for a {@link VolumeRequest} to be used at a specified mount path.
+ */
 @AutoMatter
-public interface StagedContinuation {
+public interface VolumeMount {
 
-  URI stageLocation();
-  List<URI> stagedFiles();
-  String continuationFileName();
+  VolumeRequest volumeRequest();
+  String mountPath();
+  boolean readOnly();
 
-  static StagedContinuation stagedContinuation(
-      URI stageLocation,
-      List<URI> stagedFiles,
-      String continuationFileName) {
-    return new StagedContinuationBuilder()
-        .stageLocation(stageLocation)
-        .stagedFiles(stagedFiles)
-        .continuationFileName(continuationFileName)
+  static VolumeMount volumeMount(
+      VolumeRequest volumeRequest, String mountPath, boolean readOnly) {
+    return new VolumeMountBuilder()
+        .volumeRequest(volumeRequest)
+        .mountPath(mountPath)
+        .readOnly(readOnly)
         .build();
   }
 }
