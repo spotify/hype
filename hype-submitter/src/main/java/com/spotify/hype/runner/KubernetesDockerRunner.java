@@ -36,15 +36,11 @@ import io.fabric8.kubernetes.api.model.ContainerBuilder;
 import io.fabric8.kubernetes.api.model.ContainerStatus;
 import io.fabric8.kubernetes.api.model.DoneablePod;
 import io.fabric8.kubernetes.api.model.PersistentVolumeClaim;
-import io.fabric8.kubernetes.api.model.PersistentVolumeClaimBuilder;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.PodBuilder;
 import io.fabric8.kubernetes.api.model.PodSpec;
 import io.fabric8.kubernetes.api.model.PodSpecBuilder;
 import io.fabric8.kubernetes.api.model.PodStatus;
-import io.fabric8.kubernetes.api.model.Quantity;
-import io.fabric8.kubernetes.api.model.ResourceRequirements;
-import io.fabric8.kubernetes.api.model.ResourceRequirementsBuilder;
 import io.fabric8.kubernetes.api.model.Volume;
 import io.fabric8.kubernetes.api.model.VolumeBuilder;
 import io.fabric8.kubernetes.api.model.VolumeMountBuilder;
@@ -64,21 +60,17 @@ import java.util.concurrent.TimeUnit;
  */
 class KubernetesDockerRunner implements DockerRunner {
 
-  private static final String NAMESPACE = "default";
   private static final String HYPE_RUN = "hype-run";
   private static final String EXECUTION_ID = "HYPE_EXECUTION_ID";
-
-  private static final String STORAGE_CLASS_ANNOTATION = "volume.beta.kubernetes.io/storage-class";
-  private static final String VOLUME_CLAIM_PREFIX = "hype-claim-";
-  private static final String READ_WRITE_ONCE = "ReadWriteOnce";
-  private static final String READ_ONLY_MANY = "ReadOnlyMany";
 
   private static final int POLL_PODS_INTERVAL_SECONDS = 5;
 
   private final KubernetesClient client;
+  private final VolumeRepository volumeRepository;
 
-  KubernetesDockerRunner(KubernetesClient client) {
-    this.client = Objects.requireNonNull(client).inNamespace(NAMESPACE);
+  KubernetesDockerRunner(KubernetesClient client, VolumeRepository volumeRepository) {
+    this.client = Objects.requireNonNull(client);
+    this.volumeRepository = Objects.requireNonNull(volumeRepository);
   }
 
   @Override
@@ -96,31 +88,6 @@ class KubernetesDockerRunner implements DockerRunner {
     } catch (InterruptedException e) {
       throw new RuntimeException("Interrupted while blocking", e);
     }
-  }
-
-  private PersistentVolumeClaim createClaim(VolumeRequest volumeRequest) {
-    final ResourceRequirements resources = new ResourceRequirementsBuilder()
-        .addToRequests("storage", new Quantity(volumeRequest.size()))
-        .build();
-
-    final PersistentVolumeClaim claimTemplate = new PersistentVolumeClaimBuilder()
-        .withNewMetadata()
-            .withGenerateName(VOLUME_CLAIM_PREFIX)
-            .addToAnnotations(STORAGE_CLASS_ANNOTATION, volumeRequest.storageClass())
-        .endMetadata()
-        .withNewSpec()
-            // todo: storageClassName: <class> // in 1.6
-            .withAccessModes(READ_WRITE_ONCE, READ_ONLY_MANY)
-            .withResources(resources)
-        .endSpec()
-        .build();
-
-    final PersistentVolumeClaim claim = client.persistentVolumeClaims().create(claimTemplate);
-    LOG.info("Created PersistentVolumeClaim {} for {}",
-        claim.getMetadata().getName(),
-        volumeRequest);
-
-    return claim;
   }
 
   private VolumeMountInfo volumeMountInfo(PersistentVolumeClaim claim, VolumeMount volumeMount) {
@@ -151,7 +118,7 @@ class KubernetesDockerRunner implements DockerRunner {
     final Map<VolumeRequest, PersistentVolumeClaim> claims = volumeMounts.stream()
         .map(VolumeMount::volumeRequest)
         .distinct()
-        .collect(toMap(identity(), this::createClaim));
+        .collect(toMap(identity(), volumeRepository::getClaim));
 
     return volumeMounts.stream()
         .map(volumeMount -> volumeMountInfo(claims.get(volumeMount.volumeRequest()), volumeMount))

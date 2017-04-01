@@ -36,10 +36,12 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
 import com.spotify.hype.runner.DockerRunner;
 import com.spotify.hype.runner.RunSpec;
+import com.spotify.hype.runner.VolumeRepository;
 import com.spotify.hype.util.Fn;
 import com.spotify.hype.util.SerializationUtil;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import java.io.BufferedOutputStream;
+import java.io.Closeable;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -74,7 +76,7 @@ import org.slf4j.LoggerFactory;
  * todo: PD scheduling (create r/w mode, pass along to other jobs, use OpProvider?)
  *       https://kubernetes.io/docs/concepts/storage/volumes/#gcepersistentdisk
  */
-public class Submitter {
+public class Submitter implements Closeable {
 
   private static final Logger LOG = LoggerFactory.getLogger(Submitter.class);
 
@@ -88,7 +90,9 @@ public class Submitter {
   private final Storage storage;
   private final ClasspathInspector classpathInspector;
   private final String bucketName;
-  private final ContainerEngineCluster cluster;
+
+  private final VolumeRepository volumeRepository;
+  private final DockerRunner runner;
 
   public static Submitter create(String bucketName, ContainerEngineCluster cluster) {
     final ClasspathInspector classpathInspector = forLoader(Submitter.class.getClassLoader());
@@ -108,7 +112,10 @@ public class Submitter {
     this.storage = Objects.requireNonNull(storage);
     this.bucketName = Objects.requireNonNull(bucketName);
     this.classpathInspector = Objects.requireNonNull(classpathInspector);
-    this.cluster = Objects.requireNonNull(cluster);
+
+    final KubernetesClient client = getClient(cluster);
+    this.volumeRepository = new VolumeRepository(client);
+    this.runner = DockerRunner.kubernetes(client, volumeRepository);
   }
 
   public <T> T runOnCluster(Fn<T> fn, RunEnvironment environment) {
@@ -119,9 +126,7 @@ public class Submitter {
     final RunSpec runSpec = runSpec(environment, stagedContinuation);
 
     LOG.info("Submitting to {}", environment);
-    final KubernetesClient kubernetesClient = getClient(cluster);
-    final DockerRunner kubernetes = DockerRunner.kubernetes(kubernetesClient);
-    final Optional<URI> returnUri = kubernetes.run(runSpec);
+    final Optional<URI> returnUri = runner.run(runSpec);
 
     // 3. download serialized return value
     if (returnUri.isPresent()) {
@@ -233,6 +238,13 @@ public class Submitter {
     }
 
     return localFilePath;
+  }
+
+  @Override
+  public void close() throws IOException {
+    if (volumeRepository != null) {
+      volumeRepository.close();
+    }
   }
 
   private static KubernetesClient client;
