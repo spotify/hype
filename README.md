@@ -56,7 +56,9 @@ docker container while running on the cluster.
 
 ---
 
-![Overview](hype.png)
+<p align="center">
+  <img src="https://github.com/spotify/hype/blob/master/hype.png?raw=true" alt="Overview"/>
+</p>
 
 ---
 
