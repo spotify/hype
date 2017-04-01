@@ -71,10 +71,6 @@ import org.slf4j.LoggerFactory;
  *
  * todo: Resource requests (cpu, mem)
  *       https://kubernetes.io/docs/concepts/policy/resource-quotas/
- *
- * todo: gcePersistentDisk mounting
- * todo: PD scheduling (create r/w mode, pass along to other jobs, use OpProvider?)
- *       https://kubernetes.io/docs/concepts/storage/volumes/#gcepersistentdisk
  */
 public class Submitter implements Closeable {
 

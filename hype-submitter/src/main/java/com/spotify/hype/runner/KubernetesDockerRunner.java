@@ -135,11 +135,9 @@ class KubernetesDockerRunner implements DockerRunner {
         ? env.image()
         : env.image() + ":latest";
 
-    // todo: max retry limit
-
     // todo: set from env
 //    final ResourceRequirements resources = new ResourceRequirementsBuilder()
-//        .addToRequests("cpu", new Quantity("1000m"))
+//        .addToRequests("cpu", new Quantity("1"))
 //        .build();
 
     final List<VolumeMountInfo> volumeMountInfos = volumeMountInfos(env.volumeMounts());
@@ -167,7 +165,7 @@ class KubernetesDockerRunner implements DockerRunner {
         .forEach(container.getVolumeMounts()::add);
 
     final PodSpec spec = new PodSpecBuilder()
-        .withRestartPolicy("OnFailure")
+        .withRestartPolicy("OnFailure") // todo: max retry limit
         .addToContainers(container)
         .addNewVolume()
             .withName(secret.name())
@@ -190,9 +188,16 @@ class KubernetesDockerRunner implements DockerRunner {
   private Optional<URI> blockUntilComplete(final String podName) throws InterruptedException {
     LOG.debug("Checking running statuses");
 
+    boolean nodeAssigned = false;
+
     while (true) {
       final ClientPodResource<Pod, DoneablePod> pod = client.pods().withName(podName);
       final PodStatus status = pod.get().getStatus();
+
+      if (!nodeAssigned && pod.get().getSpec().getNodeName() != null) {
+        LOG.info("Pod {} assigned to node {}", podName, pod.get().getSpec().getNodeName());
+        nodeAssigned = true;
+      }
 
       switch (status.getPhase()) {
         case "Succeeded":
