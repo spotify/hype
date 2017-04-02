@@ -28,10 +28,11 @@ import static com.spotify.hype.VolumeRequest.volumeRequest;
 import com.spotify.hype.util.Fn;
 import java.util.List;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 public class Example {
 
-  public static void main(String[] args) {
+  public static void main(String[] args) throws Exception {
     final Record record = new Record("hello", 42);
     final Fn<List<String>> fn = () -> {
       String cwd = System.getProperty("user.dir");
@@ -44,24 +45,27 @@ public class Example {
           .collect(Collectors.toList());
     };
 
-    final ContainerEngineCluster cluster = containerEngineCluster(
-        "datawhere-test", "us-east1-d", "hype-test");
-
-    final Submitter submitter = Submitter.create(args[0], cluster);
-
-    // create a volume request from a predefined storage class with name 'slow'
-    final VolumeRequest request = volumeRequest("slow", "10Gi");
-    final VolumeMount volumeMount = request.mountReadWrite("/usr/share/volume");
-
     final RunEnvironment environment = environment(
         "us.gcr.io/datawhere-test/hype-runner:5",
         secret("gcp-key", "/etc/gcloud"));
 
-    final RunEnvironment envWithMount = environment
-        .withMount(volumeMount);
+    // create a volume request from a predefined storage class with name 'slow'
+    VolumeRequest slow10Gi = volumeRequest("slow", "10Gi");
 
-    final List<String> ret = submitter.runOnCluster(fn, envWithMount);
-    System.out.println("ret = " + ret);
+    final RunEnvironment rwEnv = environment.withMount(slow10Gi.mountReadWrite("/usr/share/volume"));
+    final RunEnvironment roEnv = environment.withMount(slow10Gi.mountReadOnly("/usr/share/volume"));
+
+    final ContainerEngineCluster cluster = containerEngineCluster(
+        "datawhere-test", "us-east1-d", "hype-test");
+
+    try (final Submitter submitter = Submitter.create(args[0], cluster)) {
+      final List<String> ret = submitter.runOnCluster(fn, rwEnv);
+      System.out.println("ret = " + ret);
+
+      IntStream.range(0, 10)
+          .parallel()
+          .forEach(i -> submitter.runOnCluster(fn, roEnv));
+    }
   }
 
   private static class Record {
