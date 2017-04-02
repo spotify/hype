@@ -46,19 +46,73 @@ RunEnvironment env = environment(
     "gcr.io/gcp-project-id/env-image", // the env image we created earlier
     secret("gcp-key", "/etc/gcloud")); // a pre-created k8s secret volume named "gcp-key"
 
-Submitter submitter = Submitter.create('my-staging-bucket', cluster);
-
-List<String> result = submitter.runOnCluster(fn, env);
+try (Submitter submitter = Submitter.create("my-staging-bucket", cluster)) {
+  List<String> result = submitter.runOnCluster(fn, env);
+}
 ```
 
 The `result` list returned should contain the environment variables that were present in the
 docker container while running on the cluster.
 
----
+## Process overview
+
+This describes what Hype does from a high level point of view.
 
 <p align="center">
-  <img src="https://github.com/spotify/hype/blob/master/hype.png?raw=true" alt="Overview"/>
+  <img src="https://github.com/spotify/hype/blob/master/doc/hype.png?raw=true"/>
 </p>
+
+## Persistent Volumes
+
+Hype makes it easy to schedule persistent disk volumes across different closures in a workflow.
+A typical pattern seen in many use cases is to first use a disk in read-write mode to download and
+prepare some data, and then fork out to several parallel tasks that use the disk in read-only mode.
+
+<p align="center">
+  <img src="https://github.com/spotify/hype/blob/master/doc/hype-volumes.png?raw=true"/>
+</p>
+
+In this example, we're using a StorageClass for [GCE Persistent Disk] that we've already set up on
+our cluster.
+
+```yaml
+kind: StorageClass
+apiVersion: storage.k8s.io/v1beta1
+metadata:
+  name: gce-ssd-pd
+provisioner: kubernetes.io/gce-pd
+parameters:
+  type: pd-ssd
+```
+
+We can then request volumes from this StorageClass using the Hype API:
+
+```java
+RunEnvironment environment = environment(
+    "gcr.io/gcp-project-id/env-image",
+    secret("gcp-key", "/etc/gcloud"));
+
+VolumeRequest ssd10Gi = volumeRequest("gce-ssd-pd", "10Gi");
+VolumeMount usrShareRW = ssd10Gi.mountReadWrite("/usr/share/volume");
+VolumeMount usrShareRO = ssd10Gi.mountReadOnly("/usr/share/volume");
+
+try (Submitter submitter = Submitter.create("my-staging-bucket", cluster)) {
+  RunEnvironment readWriteEnv = environment.withMount(usrShareRW);
+  submitter.runOnCluster(fn, readWriteEnv);
+
+  RunEnvironment readOnlyEnv = environment.withMount(usrShareRO);
+  IntStream.range(0, 10)
+      .parallel()
+      .forEach(i -> submitter.runOnCluster(fn2, readOnlyEnv));
+}
+```
+
+This submissions from the parallel stream will all run in a separate pod and have read-only
+access to the `/usr/share/volume` mount. The volume should contain whatever was written to it
+from the first submission.
+
+Coordinating metadata and parameters across all submission runs should be just as trivial as
+passing values from function calls into other function closure.
 
 ---
 
@@ -66,3 +120,4 @@ _This project is in early development stages, expect anything you see to change.
 
 [Docker]: https://www.docker.com
 [Kubernetes]: https://kubernetes.io/
+[GCE Persistent Disk]: http://blog.kubernetes.io/2016/10/dynamic-provisioning-and-storage-in-kubernetes.html

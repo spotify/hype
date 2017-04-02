@@ -40,6 +40,7 @@ import org.slf4j.LoggerFactory;
  */
 public interface DockerRunner {
 
+  String NAMESPACE = "default";
   Logger LOG = LoggerFactory.getLogger(DockerRunner.class);
 
   /**
@@ -50,8 +51,10 @@ public interface DockerRunner {
    */
   Optional<URI> run(RunSpec runSpec);
 
-  static DockerRunner kubernetes(KubernetesClient kubernetesClient) {
-    return new KubernetesDockerRunner(kubernetesClient);
+  static DockerRunner kubernetes(
+      KubernetesClient kubernetesClient,
+      VolumeRepository volumeRepository) {
+    return new KubernetesDockerRunner(kubernetesClient, volumeRepository);
   }
 
   static KubernetesClient createKubernetesClient(ContainerEngineCluster gkeCluster) {
@@ -73,7 +76,7 @@ public interface DockerRunner {
           .withClientKeyData(cluster.getMasterAuth().getClientKey())
           .build();
 
-      return new DefaultKubernetesClient(kubeConfig);
+      return new DefaultKubernetesClient(kubeConfig).inNamespace(NAMESPACE);
     } catch (IOException e) {
       throw Throwables.propagate(e);
     }

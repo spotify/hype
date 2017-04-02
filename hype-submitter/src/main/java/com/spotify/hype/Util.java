@@ -20,25 +20,19 @@
 
 package com.spotify.hype;
 
-import io.norberg.automatter.AutoMatter;
-import java.net.URI;
-import java.util.List;
+public final class Util {
 
-@AutoMatter
-public interface StagedContinuation {
+  private static final String ALPHA_NUMERIC_STRING = "abcdefghijklmnopqrstuvwxyz0123456789";
 
-  URI stageLocation();
-  List<URI> stagedFiles();
-  String continuationFileName();
+  private Util() {
+  }
 
-  static StagedContinuation stagedContinuation(
-      URI stageLocation,
-      List<URI> stagedFiles,
-      String continuationFileName) {
-    return new StagedContinuationBuilder()
-        .stageLocation(stageLocation)
-        .stagedFiles(stagedFiles)
-        .continuationFileName(continuationFileName)
-        .build();
+  public static String randomAlphaNumeric(int count) {
+    StringBuilder builder = new StringBuilder();
+    while (count-- != 0) {
+      int character = (int)(Math.random() * ALPHA_NUMERIC_STRING.length());
+      builder.append(ALPHA_NUMERIC_STRING.charAt(character));
+    }
+    return builder.toString();
   }
 }
