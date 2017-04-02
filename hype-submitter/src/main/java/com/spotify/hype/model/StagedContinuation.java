@@ -18,24 +18,27 @@
  * -/-/-
  */
 
-package com.spotify.hype.runner;
+package com.spotify.hype.model;
 
-import com.spotify.hype.model.RunEnvironment;
-import com.spotify.hype.model.StagedContinuation;
 import io.norberg.automatter.AutoMatter;
+import java.net.URI;
+import java.util.List;
 
 @AutoMatter
-public interface RunSpec {
+public interface StagedContinuation {
 
-  RunEnvironment runEnvironment();
-  StagedContinuation stagedContinuation();
+  URI stageLocation();
+  List<URI> stagedFiles();
+  String continuationFileName();
 
-  static RunSpec runSpec(
-      RunEnvironment runEnvironment,
-      StagedContinuation stagedContinuation) {
-    return new RunSpecBuilder()
-        .runEnvironment(runEnvironment)
-        .stagedContinuation(stagedContinuation)
+  static StagedContinuation stagedContinuation(
+      URI stageLocation,
+      List<URI> stagedFiles,
+      String continuationFileName) {
+    return new StagedContinuationBuilder()
+        .stageLocation(stageLocation)
+        .stagedFiles(stagedFiles)
+        .continuationFileName(continuationFileName)
         .build();
   }
 }

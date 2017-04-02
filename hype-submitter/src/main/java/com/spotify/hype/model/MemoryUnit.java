@@ -18,26 +18,13 @@
  * -/-/-
  */
 
-package com.spotify.hype;
+package com.spotify.hype.model;
 
-import io.norberg.automatter.AutoMatter;
+public enum MemoryUnit implements Amount.Unit {
+  E, P, T, G, M, K, Ei, Pi, Ti, Gi, Mi, Ki;
 
-/**
- * A binding for a {@link VolumeRequest} to be used at a specified mount path.
- */
-@AutoMatter
-public interface VolumeMount {
-
-  VolumeRequest volumeRequest();
-  String mountPath();
-  boolean readOnly();
-
-  static VolumeMount volumeMount(
-      VolumeRequest volumeRequest, String mountPath, boolean readOnly) {
-    return new VolumeMountBuilder()
-        .volumeRequest(volumeRequest)
-        .mountPath(mountPath)
-        .readOnly(readOnly)
-        .build();
+  @Override
+  public String toString() {
+    return name();
   }
 }
