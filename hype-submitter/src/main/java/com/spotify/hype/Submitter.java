@@ -130,7 +130,11 @@ public class Submitter implements Closeable {
 
       // 4. deserialize and return
       //noinspection unchecked
-      return (T) SerializationUtil.readObject(path);
+      final T returnValue = (T) SerializationUtil.readObject(path);
+
+      waitForDetach(environment);
+
+      return returnValue;
     } else {
       throw new RuntimeException("Failed to get return value");
     }
@@ -240,6 +244,29 @@ public class Submitter implements Closeable {
   public void close() throws IOException {
     if (volumeRepository != null) {
       volumeRepository.close();
+    }
+  }
+
+  /**
+   * Hacky workaround for allowing k8s to detach any ReadWrite volumes from the nodes before
+   * we continue to submit more pods.
+   *
+   * <p>A volume can be used in ReadOnly mode even when it is attached to a node in ReadWrite
+   * mode. However, it can only be attached in ReadWrite mode to a single node.
+   *
+   * <p>If several pods requesting the same volume in ReadOnly mode are submitted too quickly
+   * after it has been used in ReadWrite mode, they'll be able to use it immediately on the node
+   * that has already has it attached as ReadWrite. All other nodes will have to wait for the
+   * pods on that node to complete, and the node to detach the volume, before they are able to
+   * attach the volume in ReadOnly mode. This leads to unnecessary contention between nodes and
+   * reduces node-parallelism of submitted pods down to one node.
+   */
+  private void waitForDetach(RunEnvironment environment) {
+    if (environment.volumeMounts().stream().anyMatch(v -> !v.readOnly())) {
+      try {
+        Thread.sleep(10_000);
+      } catch (InterruptedException ignore) {
+      }
     }
   }
 
