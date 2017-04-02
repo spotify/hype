@@ -20,8 +20,8 @@
 
 package com.spotify.hype.runner;
 
-import com.spotify.hype.RunEnvironment;
-import com.spotify.hype.StagedContinuation;
+import com.spotify.hype.model.RunEnvironment;
+import com.spotify.hype.model.StagedContinuation;
 import io.norberg.automatter.AutoMatter;
 
 @AutoMatter
