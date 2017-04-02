@@ -4,7 +4,7 @@
   <parent>
     <groupId>com.spotify</groupId>
     <artifactId>hype-root</artifactId>
-    <version>0.0.8</version>
+    <version>0.0.9-SNAPSHOT</version>
   </parent>
 
   <artifactId>hype-submitter</artifactId>
@@ -13,7 +13,7 @@
     <dependency>
       <groupId>com.spotify</groupId>
       <artifactId>hype-run</artifactId>
-      <version>0.0.8</version>
+      <version>0.0.9-SNAPSHOT</version>
     </dependency>
 
     <dependency>
