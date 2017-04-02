@@ -60,8 +60,8 @@ This describes what Hype does from a high level point of view.
 
 <p align="center">
   <img src="https://github.com/spotify/hype/blob/master/doc/hype.png?raw=true"
-       width="732"
-       height="356"/>
+       width="723"
+       height="336"/>
 </p>
 
 ## Persistent Volumes
