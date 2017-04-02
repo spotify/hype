@@ -21,10 +21,16 @@
 package com.spotify.hype;
 
 import static com.spotify.hype.ContainerEngineCluster.containerEngineCluster;
-import static com.spotify.hype.RunEnvironment.environment;
-import static com.spotify.hype.Secret.secret;
-import static com.spotify.hype.VolumeRequest.volumeRequest;
+import static com.spotify.hype.model.CpuUnit.m;
+import static com.spotify.hype.model.MemoryUnit.Mi;
+import static com.spotify.hype.model.ResourceRequest.CPU;
+import static com.spotify.hype.model.ResourceRequest.MEMORY;
+import static com.spotify.hype.model.RunEnvironment.environment;
+import static com.spotify.hype.model.Secret.secret;
+import static com.spotify.hype.model.VolumeRequest.volumeRequest;
 
+import com.spotify.hype.model.RunEnvironment;
+import com.spotify.hype.model.VolumeRequest;
 import com.spotify.hype.util.Fn;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -45,9 +51,12 @@ public class Example {
           .collect(Collectors.toList());
     };
 
-    final RunEnvironment environment = environment(
-        "us.gcr.io/datawhere-test/hype-runner:5",
-        secret("gcp-key", "/etc/gcloud"));
+    final RunEnvironment environment =
+        environment(
+            "us.gcr.io/datawhere-test/hype-runner:5",
+            secret("gcp-key", "/etc/gcloud"))
+        .withRequest(CPU.of(200, m))
+        .withRequest(MEMORY.of(256, Mi));
 
     // create a volume request from a predefined storage class with name 'slow'
     VolumeRequest slow10Gi = volumeRequest("slow", "10Gi");

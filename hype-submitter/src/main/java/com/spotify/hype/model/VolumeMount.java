@@ -18,24 +18,26 @@
  * -/-/-
  */
 
-package com.spotify.hype.runner;
+package com.spotify.hype.model;
 
-import com.spotify.hype.model.RunEnvironment;
-import com.spotify.hype.model.StagedContinuation;
 import io.norberg.automatter.AutoMatter;
 
+/**
+ * A binding for a {@link VolumeRequest} to be used at a specified mount path.
+ */
 @AutoMatter
-public interface RunSpec {
+public interface VolumeMount {
 
-  RunEnvironment runEnvironment();
-  StagedContinuation stagedContinuation();
+  VolumeRequest volumeRequest();
+  String mountPath();
+  boolean readOnly();
 
-  static RunSpec runSpec(
-      RunEnvironment runEnvironment,
-      StagedContinuation stagedContinuation) {
-    return new RunSpecBuilder()
-        .runEnvironment(runEnvironment)
-        .stagedContinuation(stagedContinuation)
+  static VolumeMount volumeMount(
+      VolumeRequest volumeRequest, String mountPath, boolean readOnly) {
+    return new VolumeMountBuilder()
+        .volumeRequest(volumeRequest)
+        .mountPath(mountPath)
+        .readOnly(readOnly)
         .build();
   }
 }

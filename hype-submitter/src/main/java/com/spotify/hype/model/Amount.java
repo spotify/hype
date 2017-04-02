@@ -18,27 +18,28 @@
  * -/-/-
  */
 
-package com.spotify.hype;
+package com.spotify.hype.model;
 
 import io.norberg.automatter.AutoMatter;
-import java.net.URI;
-import java.util.List;
 
 @AutoMatter
-public interface StagedContinuation {
+public interface Amount {
 
-  URI stageLocation();
-  List<URI> stagedFiles();
-  String continuationFileName();
+  int size();
+  String unit();
 
-  static StagedContinuation stagedContinuation(
-      URI stageLocation,
-      List<URI> stagedFiles,
-      String continuationFileName) {
-    return new StagedContinuationBuilder()
-        .stageLocation(stageLocation)
-        .stagedFiles(stagedFiles)
-        .continuationFileName(continuationFileName)
-        .build();
+  static Amount of(int size, String unit) {
+    return new AmountBuilder().size(size).unit(unit).build();
+  }
+
+  static Amount of(int size) {
+    return new AmountBuilder().size(size).unit("").build();
+  }
+
+  default String asString() {
+    return String.format("%d%s", size(), unit());
+  }
+
+  interface Unit {
   }
 }

@@ -21,7 +21,7 @@
 package com.spotify.hype;
 
 import static com.spotify.hype.ClasspathInspector.forLoader;
-import static com.spotify.hype.StagedContinuation.stagedContinuation;
+import static com.spotify.hype.model.StagedContinuation.stagedContinuation;
 import static com.spotify.hype.runner.RunSpec.runSpec;
 import static java.util.concurrent.TimeUnit.MINUTES;
 import static java.util.stream.Collectors.toList;
@@ -34,6 +34,8 @@ import com.google.cloud.storage.StorageOptions;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
+import com.spotify.hype.model.RunEnvironment;
+import com.spotify.hype.model.StagedContinuation;
 import com.spotify.hype.runner.DockerRunner;
 import com.spotify.hype.runner.RunSpec;
 import com.spotify.hype.runner.VolumeRepository;

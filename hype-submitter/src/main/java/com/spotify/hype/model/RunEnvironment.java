@@ -18,10 +18,11 @@
  * -/-/-
  */
 
-package com.spotify.hype;
+package com.spotify.hype.model;
 
 import io.norberg.automatter.AutoMatter;
 import java.util.List;
+import java.util.Map;
 
 @AutoMatter
 public interface RunEnvironment {
@@ -29,6 +30,7 @@ public interface RunEnvironment {
   String image();
   Secret secretMount();
   List<VolumeMount> volumeMounts();
+  Map<String, Amount> resourceRequests();
 
   static RunEnvironment environment(String image, Secret secret) {
     return new RunEnvironmentBuilder()
@@ -40,6 +42,18 @@ public interface RunEnvironment {
   default RunEnvironment withMount(VolumeMount volumeMount) {
     return RunEnvironmentBuilder.from(this)
         .addVolumeMount(volumeMount)
+        .build();
+  }
+
+  default RunEnvironment withRequest(String resource, int size, String unit) {
+    return RunEnvironmentBuilder.from(this)
+        .putResourceRequest(resource, Amount.of(size, unit))
+        .build();
+  }
+
+  default RunEnvironment withRequest(ResourceRequest request) {
+    return RunEnvironmentBuilder.from(this)
+        .putResourceRequest(request.resource(), request.amount())
         .build();
   }
 }

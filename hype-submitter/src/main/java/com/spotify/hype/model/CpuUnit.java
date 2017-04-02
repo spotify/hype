@@ -18,24 +18,13 @@
  * -/-/-
  */
 
-package com.spotify.hype.runner;
+package com.spotify.hype.model;
 
-import com.spotify.hype.model.RunEnvironment;
-import com.spotify.hype.model.StagedContinuation;
-import io.norberg.automatter.AutoMatter;
+public enum CpuUnit implements Amount.Unit {
+  m;
 
-@AutoMatter
-public interface RunSpec {
-
-  RunEnvironment runEnvironment();
-  StagedContinuation stagedContinuation();
-
-  static RunSpec runSpec(
-      RunEnvironment runEnvironment,
-      StagedContinuation stagedContinuation) {
-    return new RunSpecBuilder()
-        .runEnvironment(runEnvironment)
-        .stagedContinuation(stagedContinuation)
-        .build();
+  @Override
+  public String toString() {
+    return name();
   }
 }

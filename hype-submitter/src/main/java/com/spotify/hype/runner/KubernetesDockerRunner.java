@@ -26,11 +26,12 @@ import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toMap;
 
 import com.google.common.collect.ImmutableList;
-import com.spotify.hype.RunEnvironment;
-import com.spotify.hype.Secret;
-import com.spotify.hype.StagedContinuation;
-import com.spotify.hype.VolumeMount;
-import com.spotify.hype.VolumeRequest;
+import com.spotify.hype.model.Amount;
+import com.spotify.hype.model.RunEnvironment;
+import com.spotify.hype.model.Secret;
+import com.spotify.hype.model.StagedContinuation;
+import com.spotify.hype.model.VolumeMount;
+import com.spotify.hype.model.VolumeRequest;
 import io.fabric8.kubernetes.api.model.Container;
 import io.fabric8.kubernetes.api.model.ContainerBuilder;
 import io.fabric8.kubernetes.api.model.ContainerStatus;
@@ -41,6 +42,9 @@ import io.fabric8.kubernetes.api.model.PodBuilder;
 import io.fabric8.kubernetes.api.model.PodSpec;
 import io.fabric8.kubernetes.api.model.PodSpecBuilder;
 import io.fabric8.kubernetes.api.model.PodStatus;
+import io.fabric8.kubernetes.api.model.Quantity;
+import io.fabric8.kubernetes.api.model.ResourceRequirements;
+import io.fabric8.kubernetes.api.model.ResourceRequirementsBuilder;
 import io.fabric8.kubernetes.api.model.Volume;
 import io.fabric8.kubernetes.api.model.VolumeBuilder;
 import io.fabric8.kubernetes.api.model.VolumeMountBuilder;
@@ -135,10 +139,11 @@ class KubernetesDockerRunner implements DockerRunner {
         ? env.image()
         : env.image() + ":latest";
 
-    // todo: set from env
-//    final ResourceRequirements resources = new ResourceRequirementsBuilder()
-//        .addToRequests("cpu", new Quantity("1"))
-//        .build();
+    final ResourceRequirementsBuilder resourceReqsBuilder = new ResourceRequirementsBuilder();
+    for (Map.Entry<String, Amount> request : env.resourceRequests().entrySet()) {
+      resourceReqsBuilder.addToRequests(request.getKey(), new Quantity(request.getValue().asString()));
+    }
+    final ResourceRequirements resources = resourceReqsBuilder.build();
 
     final List<VolumeMountInfo> volumeMountInfos = volumeMountInfos(env.volumeMounts());
 
@@ -152,7 +157,7 @@ class KubernetesDockerRunner implements DockerRunner {
             .withName(EXECUTION_ID)
             .withValue(podName)
         .endEnv()
-//        .withResources(resources)
+        .withResources(resources)
         .addNewVolumeMount()
             .withName(secret.name())
             .withMountPath(secret.mountPath())
