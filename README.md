@@ -59,7 +59,9 @@ docker container while running on the cluster.
 This describes what Hype does from a high level point of view.
 
 <p align="center">
-  <img src="https://github.com/spotify/hype/blob/master/doc/hype.png?raw=true"/>
+  <img src="https://github.com/spotify/hype/blob/master/doc/hype.png?raw=true"
+       width="732"
+       height="356"/>
 </p>
 
 ## Persistent Volumes
@@ -69,7 +71,9 @@ A typical pattern seen in many use cases is to first use a disk in read-write mo
 prepare some data, and then fork out to several parallel tasks that use the disk in read-only mode.
 
 <p align="center">
-  <img src="https://github.com/spotify/hype/blob/master/doc/hype-volumes.png?raw=true"/>
+  <img src="https://github.com/spotify/hype/blob/master/doc/hype-volumes.png?raw=true"
+       width="406"
+       height="213"/>
 </p>
 
 In this example, we're using a StorageClass for [GCE Persistent Disk] that we've already set up on
