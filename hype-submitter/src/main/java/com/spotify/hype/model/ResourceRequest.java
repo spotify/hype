@@ -18,27 +18,34 @@
  * -/-/-
  */
 
-package com.spotify.hype;
+package com.spotify.hype.model;
 
 import io.norberg.automatter.AutoMatter;
-import java.net.URI;
-import java.util.List;
 
+/**
+ * A Kubernetes resource request
+ */
 @AutoMatter
-public interface StagedContinuation {
+public interface ResourceRequest {
 
-  URI stageLocation();
-  List<URI> stagedFiles();
-  String continuationFileName();
+  ResourceRequestCreator CPU = forResource("cpu");
+  ResourceRequestCreator MEMORY = forResource("memory");
 
-  static StagedContinuation stagedContinuation(
-      URI stageLocation,
-      List<URI> stagedFiles,
-      String continuationFileName) {
-    return new StagedContinuationBuilder()
-        .stageLocation(stageLocation)
-        .stagedFiles(stagedFiles)
-        .continuationFileName(continuationFileName)
+  String resource();
+  String amount();
+
+  static ResourceRequest request(String resource, String amount) {
+    return new ResourceRequestBuilder()
+        .resource(resource)
+        .amount(amount)
         .build();
+  }
+
+  interface ResourceRequestCreator {
+    ResourceRequest of(String amount);
+  }
+
+  static ResourceRequestCreator forResource(String resource) {
+    return (amount) -> ResourceRequest.request(resource, amount);
   }
 }

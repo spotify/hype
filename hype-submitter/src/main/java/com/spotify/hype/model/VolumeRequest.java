@@ -18,10 +18,9 @@
  * -/-/-
  */
 
-package com.spotify.hype;
+package com.spotify.hype.model;
 
-import static com.spotify.hype.VolumeMount.volumeMount;
-
+import com.spotify.hype.Util;
 import io.norberg.automatter.AutoMatter;
 
 /**
@@ -49,13 +48,13 @@ public interface VolumeRequest {
    * Mount the requested volume in read-only mode at the specified path.
    */
   default VolumeMount mountReadOnly(String mountPath) {
-    return volumeMount(this, mountPath, true);
+    return VolumeMount.volumeMount(this, mountPath, true);
   }
 
   /**
    * Mount the requested volume in read-write mode at the specified path.
    */
   default VolumeMount mountReadWrite(String mountPath) {
-    return volumeMount(this, mountPath, false);
+    return VolumeMount.volumeMount(this, mountPath, false);
   }
 }

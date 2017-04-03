@@ -18,28 +18,26 @@
  * -/-/-
  */
 
-package com.spotify.hype;
+package com.spotify.hype.model;
 
 import io.norberg.automatter.AutoMatter;
-import java.util.List;
 
+/**
+ * A binding for a {@link VolumeRequest} to be used at a specified mount path.
+ */
 @AutoMatter
-public interface RunEnvironment {
+public interface VolumeMount {
 
-  String image();
-  Secret secretMount();
-  List<VolumeMount> volumeMounts();
+  VolumeRequest volumeRequest();
+  String mountPath();
+  boolean readOnly();
 
-  static RunEnvironment environment(String image, Secret secret) {
-    return new RunEnvironmentBuilder()
-        .image(image)
-        .secretMount(secret)
-        .build();
-  }
-
-  default RunEnvironment withMount(VolumeMount volumeMount) {
-    return RunEnvironmentBuilder.from(this)
-        .addVolumeMount(volumeMount)
+  static VolumeMount volumeMount(
+      VolumeRequest volumeRequest, String mountPath, boolean readOnly) {
+    return new VolumeMountBuilder()
+        .volumeRequest(volumeRequest)
+        .mountPath(mountPath)
+        .readOnly(readOnly)
         .build();
   }
 }

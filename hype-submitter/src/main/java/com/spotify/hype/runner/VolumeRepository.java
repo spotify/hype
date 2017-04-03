@@ -20,7 +20,7 @@
 
 package com.spotify.hype.runner;
 
-import com.spotify.hype.VolumeRequest;
+import com.spotify.hype.model.VolumeRequest;
 import io.fabric8.kubernetes.api.model.PersistentVolumeClaim;
 import io.fabric8.kubernetes.api.model.PersistentVolumeClaimBuilder;
 import io.fabric8.kubernetes.api.model.Quantity;
