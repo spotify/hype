@@ -60,6 +60,9 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * A {@link DockerRunner} implementation that submits container executions to a Kubernetes cluster.
+ *
+ * todo: retry docker operations
+ * todo: clean up all pods on exit?
  */
 class KubernetesDockerRunner implements DockerRunner {
 

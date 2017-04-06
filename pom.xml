@@ -26,7 +26,8 @@
   <properties>
     <flo.version>0.0.8</flo.version>
     <grpc.version>1.0.3</grpc.version>
-    <gcloud.version>0.9.4-beta</gcloud.version>
+    <gcloud.version>0.11.1-beta</gcloud.version>
+    <gcloud-alpha.version>0.11.1-alpha</gcloud-alpha.version>
     <capsule.version>1.0.3</capsule.version>
     <jackson.version>2.8.4</jackson.version>
   </properties>
@@ -87,6 +88,11 @@
         <groupId>com.google.cloud</groupId>
         <artifactId>google-cloud-storage</artifactId>
         <version>${gcloud.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.google.cloud</groupId>
+        <artifactId>google-cloud-nio</artifactId>
+        <version>${gcloud-alpha.version}</version>
       </dependency>
       <dependency>
         <groupId>com.google.apis</groupId>

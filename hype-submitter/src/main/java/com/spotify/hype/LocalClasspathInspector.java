@@ -63,7 +63,7 @@ class LocalClasspathInspector implements ClasspathInspector {
   }
 
   private static Stream<ClasspathEntry> jarFileEntriesWithExpandedManifest(ClasspathEntry entry) {
-    if (!entry.isJar() || !entry.getUrl().startsWith("file:")) {
+    if ((!entry.isJar() && !entry.isClassFolder()) || !entry.getUrl().startsWith("file:")) {
       return Stream.empty();
     }
 

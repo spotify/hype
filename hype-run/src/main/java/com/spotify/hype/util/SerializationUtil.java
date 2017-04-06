@@ -24,11 +24,11 @@ import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 import com.esotericsoftware.kryo.serializers.ClosureSerializer;
-import com.twitter.chill.AllScalaRegistrar;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import org.objenesis.strategy.StdInstantiatorStrategy;
@@ -56,7 +56,6 @@ public class SerializationUtil {
     Kryo kryo = new Kryo();
     kryo.register(java.lang.invoke.SerializedLambda.class);
     kryo.register(ClosureSerializer.Closure.class, new ClosureSerializer());
-    new AllScalaRegistrar().apply(kryo);
 
     try {
       final File file = outputPath.toFile();
@@ -69,18 +68,22 @@ public class SerializationUtil {
   }
 
   public static Object readObject(Path object) {
+    File file = object.toFile();
+
+    try (InputStream input = new FileInputStream(file)) {
+      return readObject(input);
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  public static Object readObject(InputStream inputStream) {
     Kryo kryo = new Kryo();
     kryo.register(java.lang.invoke.SerializedLambda.class);
     kryo.register(ClosureSerializer.Closure.class, new ClosureSerializer());
     kryo.setInstantiatorStrategy(new Kryo.DefaultInstantiatorStrategy(new StdInstantiatorStrategy()));
-    new AllScalaRegistrar().apply(kryo);
 
-    File file = object.toFile();
-
-    try (Input input = new Input(new FileInputStream(file))) {
-      return kryo.readClassAndObject(input);
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
+    Input input = new Input(inputStream);
+    return kryo.readClassAndObject(input);
   }
 }

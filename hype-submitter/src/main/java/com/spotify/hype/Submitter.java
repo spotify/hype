@@ -20,20 +20,15 @@
 
 package com.spotify.hype;
 
+import static com.google.common.io.Files.getNameWithoutExtension;
 import static com.spotify.hype.ClasspathInspector.forLoader;
 import static com.spotify.hype.model.StagedContinuation.stagedContinuation;
 import static com.spotify.hype.runner.RunSpec.runSpec;
-import static java.util.concurrent.TimeUnit.MINUTES;
+import static java.nio.file.Files.newInputStream;
 import static java.util.stream.Collectors.toList;
 
-import com.google.auto.value.AutoValue;
-import com.google.cloud.storage.Blob;
-import com.google.cloud.storage.Bucket;
-import com.google.cloud.storage.Storage;
-import com.google.cloud.storage.StorageOptions;
-import com.google.common.util.concurrent.Futures;
-import com.google.common.util.concurrent.ListenableFuture;
-import com.google.common.util.concurrent.SettableFuture;
+import com.spotify.hype.gcs.StagingUtil;
+import com.spotify.hype.gcs.StagingUtil.StagedPackage;
 import com.spotify.hype.model.RunEnvironment;
 import com.spotify.hype.model.StagedContinuation;
 import com.spotify.hype.runner.DockerRunner;
@@ -42,50 +37,28 @@ import com.spotify.hype.runner.VolumeRepository;
 import com.spotify.hype.util.Fn;
 import com.spotify.hype.util.SerializationUtil;
 import io.fabric8.kubernetes.client.KubernetesClient;
-import java.io.BufferedOutputStream;
 import java.io.Closeable;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.OutputStream;
+import java.io.InputStream;
 import java.net.URI;
-import java.net.URISyntaxException;
-import java.nio.ByteBuffer;
-import java.nio.channels.Channels;
-import java.nio.channels.ReadableByteChannel;
-import java.nio.channels.WritableByteChannel;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.ForkJoinPool;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * todo: hash file contents and dedupe uploads
  * todo: write explicit file list to gcs (allows for deduped and multi-use staging location)
- *
- * todo: Resource requests (cpu, mem)
- *       https://kubernetes.io/docs/concepts/policy/resource-quotas/
  */
 public class Submitter implements Closeable {
 
   private static final Logger LOG = LoggerFactory.getLogger(Submitter.class);
 
   private static final String GCS_STAGING_PREFIX = "spotify-hype-staging";
-  private static final String APPLICATION_OCTET_STREAM = "application/octet-stream";
-  private static final ForkJoinPool FJP = new ForkJoinPool(32);
-  private static final long UPLOAD_TIMEOUT_MINUTES = 10;
-  private static final ConcurrentMap<UploadPair, ListenableFuture<URI>> UPLOAD_CACHE =
-      new ConcurrentHashMap<>();
 
-  private final Storage storage;
   private final ClasspathInspector classpathInspector;
   private final String bucketName;
 
@@ -94,20 +67,18 @@ public class Submitter implements Closeable {
 
   public static Submitter create(String bucketName, ContainerEngineCluster cluster) {
     final ClasspathInspector classpathInspector = forLoader(Submitter.class.getClassLoader());
-    final Storage storage = StorageOptions.getDefaultInstance().getService();
-    return create(storage, classpathInspector, bucketName, cluster);
+    return create(classpathInspector, bucketName, cluster);
   }
 
   public static Submitter create(
-      Storage storage, ClasspathInspector classpathInspector,
+      ClasspathInspector classpathInspector,
       String bucketName, ContainerEngineCluster cluster) {
-    return new Submitter(storage, classpathInspector, bucketName, cluster);
+    return new Submitter(classpathInspector, bucketName, cluster);
   }
 
   private Submitter(
-      Storage storage, ClasspathInspector classpathInspector, String bucketName,
+      ClasspathInspector classpathInspector, String bucketName,
       ContainerEngineCluster cluster) {
-    this.storage = Objects.requireNonNull(storage);
     this.bucketName = Objects.requireNonNull(bucketName);
     this.classpathInspector = Objects.requireNonNull(classpathInspector);
 
@@ -128,11 +99,15 @@ public class Submitter implements Closeable {
 
     // 3. download serialized return value
     if (returnUri.isPresent()) {
-      final Path path = downloadFile(returnUri.get());
-
-      // 4. deserialize and return
-      //noinspection unchecked
-      final T returnValue = (T) SerializationUtil.readObject(path);
+      final Path path = Paths.get(returnUri.get());
+      final T returnValue;
+      try (InputStream inputStream = newInputStream(path)) {
+        // 4. deserialize and return
+        //noinspection unchecked
+        returnValue = (T) SerializationUtil.readObject(inputStream);
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
 
       waitForDetach(environment);
 
@@ -145,101 +120,40 @@ public class Submitter implements Closeable {
   public StagedContinuation stageContinuation(Fn<?> fn) {
     final List<Path> files = classpathInspector.classpathJars();
     final Path continuationPath = SerializationUtil.serializeContinuation(fn);
-    final String continuationFileName = continuationPath.getFileName().toString();
+    final URI stagingLocation = Paths.get(URI.create("gs://" + bucketName))
+        .resolve(GCS_STAGING_PREFIX)
+        .toUri();
+    final String continuationFileName = getNameWithoutExtension(continuationPath
+        .toAbsolutePath().toString());
+
     files.add(continuationPath.toAbsolutePath());
 
-    final Path prefix = Paths.get(GCS_STAGING_PREFIX /* ,todo prefix */);
-    final List<URI> stagedFiles;
-    try {
-      stagedFiles = stageFiles(files, prefix);
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
-
-    final URI stageLocation;
-    try {
-      stageLocation = new URI("gs", bucketName, "/" + prefix.toString(), null);
-    } catch (URISyntaxException e) {
-      throw new RuntimeException(e);
-    }
-
-    return stagedContinuation(stageLocation, stagedFiles, continuationFileName);
-  }
-
-  public List<URI> stageFiles(List<Path> files, Path prefix) throws IOException {
-    LOG.info("Staging {} files", files.size());
-
-    final List<ListenableFuture<URI>> uploadFutures = files.stream()
-        .map(file -> upload(prefix, file))
+    final List<String> fileStrings = files.stream()
+        .map(Path::toAbsolutePath)
+        .map(Path::toString)
         .collect(toList());
 
-    return Futures.get(
-        Futures.allAsList(uploadFutures),
-        UPLOAD_TIMEOUT_MINUTES, MINUTES,
-        IOException.class);
-  }
+    final List<StagedPackage> stagedPackages = StagingUtil.stageClasspathElements(
+        fileStrings,
+        stagingLocation.toString());
 
-  private ListenableFuture<URI> upload(Path prefix, Path file) {
-    return UPLOAD_CACHE.computeIfAbsent(uploadPair(prefix, file), this::upload);
-  }
+    final Optional<StagedPackage> stagedContinuationPackage = stagedPackages.stream()
+        .filter(p -> p.getName().contains(continuationFileName))
+        .findFirst();
 
-  private ListenableFuture<URI> upload(UploadPair uploadPair) {
-    final File file = uploadPair.file().toFile();
-    final Path prefix = uploadPair.prefix();
-    final SettableFuture<URI> future = SettableFuture.create();
-    LOG.debug("Staging {} in GCS bucket {}", file, bucketName);
-
-    FJP.submit(() -> {
-      try (FileInputStream inputStream = new FileInputStream(file)) {
-        Bucket bucket = storage.get(bucketName);
-        String blobName = prefix.resolve(file.getName()).toString();
-        Blob blob = bucket.create(blobName, inputStream, APPLICATION_OCTET_STREAM);
-
-        future.set(new URI("gs", blob.getBucket(), "/" + blob.getName(), null));
-      } catch (URISyntaxException | IOException e) {
-        future.setException(e);
-      }
-    });
-
-    return future;
-  }
-
-  private Path downloadFile(URI uri) {
-    final String bucket =  uri.getAuthority();
-    final String blobId = uri.getPath().substring(1); // remove leading '/'
-    final Blob blob = storage.get(bucket, blobId);
-
-    final Path localFilePath;
-    try {
-      final Path temp = Files.createTempDirectory("hype-submit");
-      final String localFileName = Paths.get(blob.getName()).getFileName().toString();
-      localFilePath = temp.resolve(localFileName);
-    } catch (IOException e) {
-      throw new RuntimeException(e);
+    if (!stagedContinuationPackage.isPresent()) {
+      throw new RuntimeException();
     }
 
-    try (OutputStream bos = new BufferedOutputStream(new FileOutputStream(localFilePath.toFile()))) {
-      try (ReadableByteChannel reader = blob.reader()) {
-        final WritableByteChannel writer = Channels.newChannel(bos);
-        final ByteBuffer buffer = ByteBuffer.allocate(8192);
+    final List<URI> stagedFiles = stagedPackages.stream()
+        .map(StagedPackage::getLocation)
+        .map(URI::create)
+        .collect(toList());
 
-        int read;
-        while ((read = reader.read(buffer)) > 0) {
-          buffer.rewind();
-          buffer.limit(read);
+    final URI uri = URI.create(stagedContinuationPackage.get().getLocation());
+    final String cont = new File(uri.getPath()).getName();
 
-          while (read > 0) {
-            read -= writer.write(buffer);
-          }
-
-          buffer.clear();
-        }
-      }
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
-
-    return localFilePath;
+    return stagedContinuation(stagingLocation, stagedFiles, cont);
   }
 
   @Override
@@ -281,13 +195,24 @@ public class Submitter implements Closeable {
     return client;
   }
 
-  @AutoValue
-  public static abstract class UploadPair {
-    abstract Path prefix();
-    abstract Path file();
-  }
+  // todo: implement parallel uploads
+  //  private static final ForkJoinPool FJP = new ForkJoinPool(32);
+  //  private static final long UPLOAD_TIMEOUT_MINUTES = 10;
+  //  private static final ConcurrentMap<UploadPair, ListenableFuture<URI>> UPLOAD_CACHE =
+  //      new ConcurrentHashMap<>();
+  //  @AutoValue
+  //  public static abstract class UploadPair {
+  //    abstract Path prefix();
+  //    abstract Path file();
+  //  }
+  //
+  //  static UploadPair uploadPair(Path prefix, Path file) {
+  //    return new AutoValue_Submitter_UploadPair(prefix, file);
+  //  }
 
-  static UploadPair uploadPair(Path prefix, Path file) {
-    return new AutoValue_Submitter_UploadPair(prefix, file);
-  }
+  //  private ListenableFuture<URI> upload(Path prefix, Path file) {
+  //    return UPLOAD_CACHE.computeIfAbsent(uploadPair(prefix, file), this::upload);
+  //  }
+  //
+  //  private ListenableFuture<URI> upload(UploadPair uploadPair) {
 }
