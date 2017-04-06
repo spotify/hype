@@ -27,28 +27,22 @@ Create a hype `Submitter` and use `runOnCluster(fn, env)` to run a closure in yo
 environment on a Kubernetes cluster. This example runs a simple block of code that just constructs
 a list of all environment variables and returns it.
 
-```java
+```scala
 // A function to run in a docker container
-Fn<List<String>> fn = () -> {
-  List<String> env = System.getenv().entrySet().stream()
-      .map(e -> e.getKey() + "=" + e.getValue())
-      .peek(System.out::println)
-      .collect(Collectors.toList());
-
-  return env;
-};
+val fn: Fn[List[String]] = () => for {
+  (key,value) <- sys.env.toList
+} yield s"$key=$value"
 
 // Use a Google Cloud Container Engine managed cluster
-ContainerEngineCluster cluster = containerEngineCluster(
-    "gcp-project-id", "gce-zone-id", "gke-cluster-id"); // modify these
+val cluster = ContainerEngineCluster.containerEngineCluster(
+    "gcp-project-id", "gce-zone-id", "gke-cluster-id") // modify these
 
-RunEnvironment env = environment(
+val env = RunEnvironment.environment(
     "gcr.io/gcp-project-id/env-image", // the env image we created earlier
-    secret("gcp-key", "/etc/gcloud")); // a pre-created k8s secret volume named "gcp-key"
+    Secret.secret("gcp-key", "/etc/gcloud")) // a pre-created k8s secret volume named "gcp-key"
 
-try (Submitter submitter = Submitter.create("my-staging-bucket", cluster)) {
-  List<String> result = submitter.runOnCluster(fn, env);
-}
+val submitter = Submitter.create("my-staging-bucket", cluster)
+submitter.runOnCluster(fn, env)
 ```
 
 The `result` list returned should contain the environment variables that were present in the
@@ -91,23 +85,30 @@ parameters:
 
 We can then request volumes from this StorageClass using the Hype API:
 
-```java
-RunEnvironment environment = environment(
-    "gcr.io/gcp-project-id/env-image",
-    secret("gcp-key", "/etc/gcloud"));
+```scala
+import scala.sys.process._
 
-VolumeRequest ssd10Gi = volumeRequest("gce-ssd-pd", "10Gi");
-VolumeMount usrShareRW = ssd10Gi.mountReadWrite("/usr/share/volume");
-VolumeMount usrShareRO = ssd10Gi.mountReadOnly("/usr/share/volume");
+// Create a 10Gi volume from the 'gce-ssd-pd' storage class
+val ssd10Gi = VolumeRequest.volumeRequest("gce-ssd-pd", "10Gi")
+val mount = "/usr/share/volume" 
 
-try (Submitter submitter = Submitter.create("my-staging-bucket", cluster)) {
-  RunEnvironment readWriteEnv = environment.withMount(usrShareRW);
-  submitter.runOnCluster(fn, readWriteEnv);
+val write: Fn[Int] = () => {
+  // get a random word and store it in the volume
+  s"curl -so $mount/word http://www.setgetgo.com/randomword/get.php" !
+}
 
-  RunEnvironment readOnlyEnv = environment.withMount(usrShareRO);
-  IntStream.range(0, 10)
-      .parallel()
-      .forEach(i -> submitter.runOnCluster(fn2, readOnlyEnv));
+val read: Fn[String] = () => {
+  // read the word file
+  s"cat $mount/word" !!
+}
+
+val readWriteEnv = environment.withMount(ssd10Gi.mountReadWrite(mount))
+submitter.runOnCluster(write, readWriteEnv)
+
+// Run 10 parallel functions that have read only access to the volume
+val readOnlyEnv = environment.withMount(ssd10Gi.mountReadOnly(mount))
+val results = for (_ <- Range(0, 10).par)
+    yield submitter.runOnCluster(read, readOnlyEnv)
 }
 ```
 
