@@ -57,7 +57,7 @@ public class Example {
         .withRequest(MEMORY.of("256Mi"));
 
     // create a volume request from a predefined storage class with name 'slow'
-    VolumeRequest slow10Gi = volumeRequest("slow", "10Gi");
+    final VolumeRequest slow10Gi = volumeRequest("slow", "10Gi");
 
     final RunEnvironment rwEnv = environment.withMount(slow10Gi.mountReadWrite("/usr/share/volume"));
     final RunEnvironment roEnv = environment.withMount(slow10Gi.mountReadOnly("/usr/share/volume"));

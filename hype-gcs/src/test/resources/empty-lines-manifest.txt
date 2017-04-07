@@ -1,0 +1,7 @@
+l continuation-ce89ba3b.bin
+c lib1.jar
+
+c lib2.jar
+c lib3.jar
+f other-file.txt
+

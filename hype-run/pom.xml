@@ -11,15 +11,9 @@
 
   <dependencies>
     <dependency>
-      <groupId>com.twitter</groupId>
-      <artifactId>chill_2.11</artifactId>
-      <version>0.9.2</version>
-    </dependency>
-
-    <dependency>
-      <groupId>junit</groupId>
-      <artifactId>junit</artifactId>
-      <scope>test</scope>
+      <groupId>com.spotify</groupId>
+      <artifactId>hype-common</artifactId>
+      <version>0.0.10-SNAPSHOT</version>
     </dependency>
   </dependencies>
 
@@ -50,10 +44,6 @@
                 <relocation>
                   <pattern>org.objenesis</pattern>
                   <shadedPattern>shaded.org.objenesis</shadedPattern>
-                </relocation>
-                <relocation>
-                  <pattern>com.twitter</pattern>
-                  <shadedPattern>shaded.com.twitter</shadedPattern>
                 </relocation>
               </relocations>
             </configuration>
