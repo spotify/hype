@@ -57,7 +57,7 @@ import java.util.concurrent.ForkJoinPool;
  * Capsule caplet that downloads a Google Cloud Storage (gs://) prefix to a temp directory before
  * invoking the application JVM in the capsule.
  *
- * <p>It tasks two command line arguments: {@code <gcs-staging-uri> <continuation-file>}.
+ * <p>It takes two command line arguments: {@code <gcs-staging-uri> <continuation-file>}.
  *
  * <p>After staging the location locally, it invokes the inner JVM by replacing the first
  * argument with a path to the local temp directory. It also adds a third argument to a filename
