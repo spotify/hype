@@ -3,6 +3,8 @@ machine:
     version: oraclejdk8
 
 dependencies:
+  cache_directories:
+    - "~/.m2"
   # compile, since dependency:resolve fails for multi-module builds
   override:
     - mvn dependency:go-offline compile
