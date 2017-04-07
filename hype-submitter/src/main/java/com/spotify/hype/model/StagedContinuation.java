@@ -20,25 +20,20 @@
 
 package com.spotify.hype.model;
 
+import com.spotify.hype.gcs.RunManifest;
 import io.norberg.automatter.AutoMatter;
-import java.net.URI;
-import java.util.List;
+import java.nio.file.Path;
 
 @AutoMatter
 public interface StagedContinuation {
 
-  URI stageLocation();
-  List<URI> stagedFiles();
-  String continuationFileName();
+  Path manifestPath();
+  RunManifest manifest();
 
-  static StagedContinuation stagedContinuation(
-      URI stageLocation,
-      List<URI> stagedFiles,
-      String continuationFileName) {
+  static StagedContinuation stagedContinuation(Path manifestPath, RunManifest manifest) {
     return new StagedContinuationBuilder()
-        .stageLocation(stageLocation)
-        .stagedFiles(stagedFiles)
-        .continuationFileName(continuationFileName)
+        .manifestPath(manifestPath)
+        .manifest(manifest)
         .build();
   }
 }

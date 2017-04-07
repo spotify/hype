@@ -20,12 +20,12 @@
 
 package com.spotify.hype.runner;
 
+import static com.google.common.collect.ImmutableList.of;
 import static com.spotify.hype.util.Util.randomAlphaNumeric;
 import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toMap;
 
-import com.google.common.collect.ImmutableList;
 import com.spotify.hype.model.RunEnvironment;
 import com.spotify.hype.model.Secret;
 import com.spotify.hype.model.StagedContinuation;
@@ -152,9 +152,8 @@ class KubernetesDockerRunner implements DockerRunner {
     final Container container = new ContainerBuilder()
         .withName(HYPE_RUN)
         .withImage(imageWithTag)
-        .withArgs(ImmutableList.of(
-            stagedContinuation.stageLocation().toString(),
-            stagedContinuation.continuationFileName()))
+        .withArgs(of(
+            stagedContinuation.manifestPath().toUri().toString()))
         .addNewEnv()
             .withName(EXECUTION_ID)
             .withValue(podName)

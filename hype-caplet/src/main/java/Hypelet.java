@@ -73,8 +73,8 @@ public class Hypelet extends Capsule {
       return super.prelaunch(jvmArgs, args);
     }
 
-    if (args.size() < 2) {
-      throw new IllegalArgumentException("Usage: <gcs-staging-uri> <continuation-file>");
+    if (args.size() < 1) {
+      throw new IllegalArgumentException("Usage: <run-manifest-gcs-uri>");
     }
 
     System.out.println("=== HYPE RUN CAPSULE (v" + getVersion() + ") ===");

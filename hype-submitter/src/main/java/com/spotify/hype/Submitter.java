@@ -24,9 +24,12 @@ import static com.google.common.io.Files.getNameWithoutExtension;
 import static com.spotify.hype.ClasspathInspector.forLoader;
 import static com.spotify.hype.model.StagedContinuation.stagedContinuation;
 import static com.spotify.hype.runner.RunSpec.runSpec;
+import static com.spotify.hype.util.Util.randomAlphaNumeric;
 import static java.nio.file.Files.newInputStream;
 import static java.util.stream.Collectors.toList;
 
+import com.spotify.hype.gcs.RunManifest;
+import com.spotify.hype.gcs.RunManifestBuilder;
 import com.spotify.hype.gcs.StagingUtil;
 import com.spotify.hype.gcs.StagingUtil.StagedPackage;
 import com.spotify.hype.model.RunEnvironment;
@@ -38,7 +41,6 @@ import com.spotify.hype.util.Fn;
 import com.spotify.hype.util.SerializationUtil;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import java.io.Closeable;
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
@@ -94,7 +96,7 @@ public class Submitter implements Closeable {
     // 2. submit and wait for k8s pod (returns return value uri, termination log, etc)
     final RunSpec runSpec = runSpec(environment, stagedContinuation);
 
-    LOG.info("Submitting to {}", environment);
+    LOG.info("Submitting {} to {}", stagedContinuation.manifestPath().toUri(), environment);
     final Optional<URI> returnUri = runner.run(runSpec);
 
     // 3. download serialized return value
@@ -123,6 +125,8 @@ public class Submitter implements Closeable {
     final URI stagingLocation = Paths.get(URI.create("gs://" + bucketName))
         .resolve(GCS_STAGING_PREFIX)
         .toUri();
+    final Path manifestPath = Paths.get(stagingLocation)
+        .resolve("manifest-" + randomAlphaNumeric(8) + ".txt");
     final String continuationFileName = getNameWithoutExtension(continuationPath
         .toAbsolutePath().toString());
 
@@ -145,15 +149,22 @@ public class Submitter implements Closeable {
       throw new RuntimeException();
     }
 
-    final List<URI> stagedFiles = stagedPackages.stream()
-        .map(StagedPackage::getLocation)
-        .map(URI::create)
-        .collect(toList());
-
     final URI uri = URI.create(stagedContinuationPackage.get().getLocation());
-    final String cont = new File(uri.getPath()).getName();
+    final String cont = Paths.get(uri).getFileName().toString();
 
-    return stagedContinuation(stagingLocation, stagedFiles, cont);
+    // todo: move manifest creation into StagingUtil
+    final RunManifest manifest = new RunManifestBuilder()
+        .continuation(cont)
+        .classPathFiles(stagedPackages.stream().map(StagedPackage::getName).collect(toList()))
+        // todo: files
+        .build();
+    try {
+      RunManifest.write(manifest, manifestPath);
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+
+    return stagedContinuation(manifestPath, manifest);
   }
 
   @Override
