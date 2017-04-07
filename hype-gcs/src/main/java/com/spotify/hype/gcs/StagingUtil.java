@@ -39,6 +39,7 @@ import java.net.URI;
 import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
 import java.nio.file.NoSuchFileException;
+import java.nio.file.OpenOption;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -221,13 +222,20 @@ public class StagingUtil {
           // If the file doesn't exist, it means we need to upload it.
         }
 
+        ArrayList<OpenOption> options = new ArrayList<>();
+        options.add(WRITE);
+        options.add(CREATE_NEW);
+        if ("gs".equals(targetPath.toUri().getScheme())) {
+          options.add(withMimeType(BINARY));
+        }
+
         // Upload file, retrying on failure.
         BackOff backoff = BACKOFF_FACTORY.backoff();
         while (true) {
           try {
             LOG.debug("Uploading classpath element {} to {}", classpathElement, target);
-            try (WritableByteChannel writer = java.nio.file.Files
-                .newByteChannel(targetPath, WRITE, CREATE_NEW, withMimeType(BINARY))) {
+            try (WritableByteChannel writer = java.nio.file.Files.newByteChannel(targetPath,
+                options.toArray(new OpenOption[options.size()]))) {
               copyContent(classpathElement, writer);
             }
             numUploaded++;
