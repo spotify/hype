@@ -41,6 +41,10 @@ class ManifestUtil {
 
     final RunManifestBuilder builder = new RunManifestBuilder();
     lines.forEachOrdered(line -> {
+      if (line.trim().isEmpty()) {
+        return;
+      }
+
       final String[] split = line.trim().split(" ", 2);
       if (split.length != 2) {
         throw new IllegalArgumentException("Malformed manifest line '" + line + "'");

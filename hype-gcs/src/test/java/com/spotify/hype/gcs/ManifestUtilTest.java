@@ -72,6 +72,14 @@ public class ManifestUtilTest {
   }
 
   @Test
+  public void skipEmptyLines() throws Exception {
+    Path manifestPath = load("/empty-lines-manifest.txt");
+    RunManifest manifest = ManifestUtil.read(manifestPath);
+
+    assertThat(manifest, is(EXAMPLE));
+  }
+
+  @Test
   public void malformedManifest() throws Exception {
     exception.expect(IllegalArgumentException.class);
     exception.expectMessage("Malformed manifest line 'clib2.jar'");

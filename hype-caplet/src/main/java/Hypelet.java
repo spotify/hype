@@ -22,16 +22,22 @@ import static com.google.cloud.storage.contrib.nio.CloudStorageOptions.withMimeT
 import static com.google.common.base.Charsets.UTF_8;
 import static com.spotify.hype.util.Util.randomAlphaNumeric;
 import static java.nio.file.StandardOpenOption.CREATE;
+import static java.nio.file.StandardOpenOption.CREATE_NEW;
 import static java.nio.file.StandardOpenOption.TRUNCATE_EXISTING;
 import static java.nio.file.StandardOpenOption.WRITE;
+import static java.util.Collections.emptyMap;
 
 import com.spotify.hype.gcs.ManifestLoader;
 import com.spotify.hype.gcs.RunManifest;
 import java.io.IOException;
 import java.net.URI;
+import java.nio.channels.Channels;
+import java.nio.channels.WritableByteChannel;
+import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.spi.FileSystemProvider;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -80,10 +86,11 @@ public class Hypelet extends Capsule {
     System.out.println("=== HYPE RUN CAPSULE (v" + getVersion() + ") ===");
 
     try {
-      manifestPath = Paths.get(URI.create(args.get(0)));
+      final URI uri = URI.create(args.get(0));
+      manifestPath = loadFileSystemProvider(uri).getPath(uri);
       stagingDir = Files.createTempDirectory(STAGING_PREFIX);
 
-      System.out.println("Downloading files from " + manifestPath);
+      System.out.println("Downloading files from " + manifestPath.toUri());
       // print manifest
       Files.copy(manifestPath, System.out);
       final RunManifest manifest = ManifestLoader.downloadManifest(manifestPath, stagingDir);
@@ -103,19 +110,24 @@ public class Hypelet extends Capsule {
       stubArgs.add(returnFile);
       return super.prelaunch(jvmArgs, stubArgs);
     } catch (Throwable e) {
+      e.printStackTrace();
       throw new RuntimeException(e);
     }
   }
 
   @Override
   protected void cleanup() {
-    if (stagingDir != null) {
+    if (stagingDir != null && returnFile != null) {
       final Path returnFilePath = stagingDir.resolve(returnFile);
       if (Files.exists(returnFilePath)) {
         try {
           System.out.println("Uploading serialized return value: " + returnFilePath);
           final Path uploadPath = manifestPath.resolveSibling(returnFile);
-          Files.copy(returnFilePath, uploadPath, withMimeType(BINARY));
+          try (WritableByteChannel writer = Files.newByteChannel(uploadPath,
+              WRITE, CREATE_NEW, withMimeType(BINARY))) {
+            com.google.common.io.Files.asByteSource(returnFilePath.toFile())
+                .copyTo(Channels.newOutputStream(writer));
+          }
           System.out.println("Uploaded to: " + uploadPath.toUri());
 
           // write the uploaded uri to the termination log if it exists
@@ -164,5 +176,9 @@ public class Hypelet extends Capsule {
     return System.getenv().containsKey(HYPE_EXECUTION_ID)
         ? System.getenv(HYPE_EXECUTION_ID)
         : randomAlphaNumeric(8);
+  }
+
+  private static FileSystemProvider loadFileSystemProvider(URI uri) throws IOException {
+    return FileSystems.newFileSystem(uri, emptyMap(), Hypelet.class.getClassLoader()).provider();
   }
 }
