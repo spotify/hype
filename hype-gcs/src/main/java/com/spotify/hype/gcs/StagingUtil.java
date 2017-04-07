@@ -163,8 +163,8 @@ public class StagingUtil {
   static List<StagedPackage> stageClasspathElements(
       Collection<String> classpathElements, String stagingPath,
       Sleeper retrySleeper) {
-    LOG.info("Uploading {} files from PipelineOptions.filesToStage to staging location to "
-             + "prepare for execution.", classpathElements.size());
+    LOG.info("Uploading {} files to staging location {} to "
+             + "prepare for execution.", classpathElements.size(), stagingPath);
 
     if (classpathElements.size() > SANE_CLASSPATH_SIZE) {
       LOG.warn("Your classpath contains {} elements, which Google Cloud Dataflow automatically "
@@ -361,4 +361,25 @@ public class StagingUtil {
       this.location = location;
     }
   }
+
+  // todo: implement parallel uploads
+  //  private static final ForkJoinPool FJP = new ForkJoinPool(32);
+  //  private static final long UPLOAD_TIMEOUT_MINUTES = 10;
+  //  private static final ConcurrentMap<UploadPair, ListenableFuture<URI>> UPLOAD_CACHE =
+  //      new ConcurrentHashMap<>();
+  //  @AutoValue
+  //  public static abstract class UploadPair {
+  //    abstract Path prefix();
+  //    abstract Path file();
+  //  }
+  //
+  //  static UploadPair uploadPair(Path prefix, Path file) {
+  //    return new AutoValue_Submitter_UploadPair(prefix, file);
+  //  }
+
+  //  private ListenableFuture<URI> upload(Path prefix, Path file) {
+  //    return UPLOAD_CACHE.computeIfAbsent(uploadPair(prefix, file), this::upload);
+  //  }
+  //
+  //  private ListenableFuture<URI> upload(UploadPair uploadPair) {
 }

@@ -194,25 +194,4 @@ public class Submitter implements Closeable {
 
     return client;
   }
-
-  // todo: implement parallel uploads
-  //  private static final ForkJoinPool FJP = new ForkJoinPool(32);
-  //  private static final long UPLOAD_TIMEOUT_MINUTES = 10;
-  //  private static final ConcurrentMap<UploadPair, ListenableFuture<URI>> UPLOAD_CACHE =
-  //      new ConcurrentHashMap<>();
-  //  @AutoValue
-  //  public static abstract class UploadPair {
-  //    abstract Path prefix();
-  //    abstract Path file();
-  //  }
-  //
-  //  static UploadPair uploadPair(Path prefix, Path file) {
-  //    return new AutoValue_Submitter_UploadPair(prefix, file);
-  //  }
-
-  //  private ListenableFuture<URI> upload(Path prefix, Path file) {
-  //    return UPLOAD_CACHE.computeIfAbsent(uploadPair(prefix, file), this::upload);
-  //  }
-  //
-  //  private ListenableFuture<URI> upload(UploadPair uploadPair) {
 }
