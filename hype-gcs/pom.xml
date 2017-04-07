@@ -27,6 +27,11 @@
     </dependency>
 
     <dependency>
+      <groupId>io.norberg</groupId>
+      <artifactId>auto-matter</artifactId>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-api</artifactId>
     </dependency>
