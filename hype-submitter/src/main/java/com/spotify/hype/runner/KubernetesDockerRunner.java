@@ -20,7 +20,7 @@
 
 package com.spotify.hype.runner;
 
-import static com.spotify.hype.Util.randomAlphaNumeric;
+import static com.spotify.hype.util.Util.randomAlphaNumeric;
 import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toMap;

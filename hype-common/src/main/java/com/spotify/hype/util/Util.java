@@ -18,7 +18,7 @@
  * -/-/-
  */
 
-package com.spotify.hype;
+package com.spotify.hype.util;
 
 public final class Util {
 

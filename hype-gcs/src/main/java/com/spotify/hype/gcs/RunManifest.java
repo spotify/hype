@@ -43,7 +43,7 @@ import java.util.List;
  * </pre>
  */
 @AutoMatter
-interface RunManifest {
+public interface RunManifest {
 
   String continuation();
 

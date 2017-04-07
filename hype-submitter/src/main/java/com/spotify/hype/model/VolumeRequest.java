@@ -20,7 +20,7 @@
 
 package com.spotify.hype.model;
 
-import com.spotify.hype.Util;
+import com.spotify.hype.util.Util;
 import io.norberg.automatter.AutoMatter;
 
 /**
