@@ -52,6 +52,7 @@ import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.fabric8.kubernetes.client.dsl.ClientPodResource;
 import io.norberg.automatter.AutoMatter;
 import java.net.URI;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -149,6 +150,7 @@ class KubernetesDockerRunner implements DockerRunner {
     final Container container = new ContainerBuilder()
         .withName(HYPE_RUN)
         .withImage(imageWithTag)
+        .withCommand(Collections.singletonList("hype-run"))
         .withArgs(ImmutableList.of(
             stagedContinuation.stageLocation().toString(),
             stagedContinuation.continuationFileName()))

@@ -13,11 +13,7 @@ the `hype-run` command by adding the following to your `Dockerfile`:
 ```dockerfile
 # Install hype-run command
 RUN /bin/sh -c "$(curl -fsSL https://goo.gl/kSogpF)"
-ENTRYPOINT ["hype-run"]
 ```
-
-It is important to have exactly this `ENTRYPOINT` as the Kubernetes Pods will expect to run the
-`hype-run` command.
 
 See example [`Dockerfile`](docker/Dockerfile)
 
