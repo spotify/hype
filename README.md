@@ -109,7 +109,6 @@ submitter.runOnCluster(write, readWriteEnv)
 val readOnlyEnv = environment.withMount(ssd10Gi.mountReadOnly(mount))
 val results = for (_ <- Range(0, 10).par)
     yield submitter.runOnCluster(read, readOnlyEnv)
-}
 ```
 
 This submissions from the parallel stream will all run in a separate pod and have read-only
