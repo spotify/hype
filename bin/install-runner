@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
-VERSION=0.0.10
-DEST=/usr/local/bin
+VERSION=${VERSION:-0.0.10}
+DEST=${DEST:-/usr/local/bin}
 JAR=${DEST}/hype-run.jar
 MAVEN_REPO=https://repo.maven.apache.org/maven2
 
