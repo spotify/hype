@@ -11,18 +11,18 @@
 
   <properties>
     <scala.baseVersion>2.11</scala.baseVersion>
-    <scala.version>2.11.8</scala.version>
+    <scala.version>2.11.9</scala.version>
   </properties>
 
   <dependencies>
     <dependency>
       <groupId>com.spotify</groupId>
-      <artifactId>hype-submitter</artifactId>
+      <artifactId>hype_${scala.baseVersion}</artifactId>
       <version>0.0.14-SNAPSHOT</version>
     </dependency>
     <dependency>
       <groupId>io.rouz</groupId>
-      <artifactId>flo-scala_2.11</artifactId>
+      <artifactId>flo-scala_${scala.baseVersion}</artifactId>
       <version>${flo.version}</version>
     </dependency>
 

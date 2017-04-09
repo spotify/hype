@@ -28,8 +28,8 @@ import com.google.common.base.Throwables;
 import com.spotify.docker.client.DefaultDockerClient;
 import com.spotify.docker.client.DockerClient;
 import com.spotify.docker.client.exceptions.DockerCertificateException;
-import com.spotify.hype.ContainerEngineCluster;
-import com.spotify.hype.DockerCluster;
+import com.spotify.hype.model.ContainerEngineCluster;
+import com.spotify.hype.model.DockerCluster;
 import io.fabric8.kubernetes.client.ConfigBuilder;
 import io.fabric8.kubernetes.client.DefaultKubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClient;
@@ -65,7 +65,7 @@ public interface DockerRunner {
                             DockerCluster dockerCluster) {
     return new LocalDockerRunner(
         dockerClient,
-        dockerCluster.keepConatainer(),
+        dockerCluster.keepContainer(),
         dockerCluster.keepTerminationLog(),
         dockerCluster.keepVolumes());
   }
@@ -102,5 +102,4 @@ public interface DockerRunner {
       throw Throwables.propagate(e);
     }
   }
-
 }

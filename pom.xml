@@ -24,6 +24,8 @@
     <module>hype-run</module>
     <module>hype-submitter</module>
     <module>hype-testing</module>
+    <module>hype-submitter_2.11</module>
+    <module>hype-submitter_2.12</module>
   </modules>
 
   <properties>

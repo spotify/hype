@@ -16,30 +16,23 @@
  */
 package com.spotify.hype
 
-import com.spotify.hype.model.{RunEnvironment, VolumeRequest}
-import com.spotify.hype.util.Fn
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.FlatSpec
+import org.scalatest.Matchers
 
 import scala.reflect.io.File
 
 class LocalSubmitterTest extends FlatSpec with Matchers {
 
-  private def testEnv = RunEnvironment
-    .environment(s"spotify-hype-testing:${VersionUtil.getVersion}")
-
-  // Once hype has scala module this should be obsolete
-  implicit def funToFn[T](fn: () => T): Fn[T] = {
-    new Fn[T] { override def run(): T = fn() }
-  }
+  private def testEnv = Environment(s"spotify-hype-testing:${VersionUtil.getVersion}")
 
   "LocalSubmitter" should "work" in {
-    val submitter = Submitter.createLocal()
-    submitter.runOnCluster(() => "foobar", testEnv) should be ("foobar")
+    withLocalSubmitter() { submitter =>
+      submitter.runOnCluster("foobar", testEnv) should be("foobar")
+    }
   }
 
   it should "support volumes write -> read" in {
-    val volume = VolumeRequest.volumeRequest("foo", "10g")
-    val submitter = Submitter.createLocal()
+    val volume = VolumeRequest("foo", "10g")
 
     val writeEnv = testEnv.withMount(volume.mountReadWrite("/foo"))
     val writeFn = () => {
@@ -48,11 +41,12 @@ class LocalSubmitterTest extends FlatSpec with Matchers {
       "foobar"
     }
 
-    val readFn = () => File("/readFoo/bar.txt").bufferedReader().readLine()
     val readEnv = testEnv.withMount(volume.mountReadOnly("/readFoo"))
+    val readFn = () => File("/readFoo/bar.txt").bufferedReader().readLine()
 
-    submitter.runOnCluster(writeFn, writeEnv) should be ("foobar")
-    submitter.runOnCluster(readFn, readEnv) should be ("foobar in a file")
+    withLocalSubmitter() { submitter =>
+      submitter.runOnCluster(writeFn, writeEnv) should be("foobar")
+      submitter.runOnCluster(readFn, readEnv) should be("foobar in a file")
+    }
   }
-  
 }

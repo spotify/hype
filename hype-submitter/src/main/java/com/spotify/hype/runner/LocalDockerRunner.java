@@ -28,6 +28,7 @@ import com.spotify.docker.client.messages.ContainerConfig;
 import com.spotify.docker.client.messages.ContainerCreation;
 import com.spotify.docker.client.messages.ContainerInfo;
 import com.spotify.docker.client.messages.HostConfig;
+import com.spotify.docker.client.messages.Image;
 import com.spotify.hype.model.RunEnvironment;
 import com.spotify.hype.model.StagedContinuation;
 import java.io.File;
@@ -36,6 +37,7 @@ import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
@@ -48,7 +50,7 @@ public class LocalDockerRunner implements DockerRunner {
   private static final String GCLOUD_CREDENTIALS = "GOOGLE_APPLICATION_CREDENTIALS";
   private static final String STAGING_VOLUME = "/staging";
   private static final String GCLOUD_CREDENTIALS_MOUNT = "/etc/gcloud/key.json";
-  private static final int POLL_CONTAINERS_INTERVAL_SECONDS = 5;
+  private static final int POLL_CONTAINERS_INTERVAL_SECONDS = 1;
 
   private final DockerClient client;
   private final Boolean keepContainer;
@@ -90,9 +92,10 @@ public class LocalDockerRunner implements DockerRunner {
     try {
       // check if it's needed to pull the image
       // TODO: figure out authentication with private repos
-      if(client.listImages().stream()
-          .noneMatch(i -> i.repoTags().stream()
-              .anyMatch(t -> Objects.equals(t, imageWithTag)))){
+      final List<Image> images = client.listImages();
+      if(images.stream().noneMatch(i ->
+          i.repoTags() != null
+          && i.repoTags().stream().anyMatch(t -> Objects.equals(t, imageWithTag)))){
         LOG.info("Pulling image " + imageWithTag);
         try {
           client.pull(imageWithTag, System.out::println); // blocking
@@ -136,7 +139,7 @@ public class LocalDockerRunner implements DockerRunner {
           .build());
 
       Path volumes = Files.createDirectories(localTmp.resolve("spotify-hype-volumes"));
-      runSpec.runEnvironment().volumeMounts().forEach(m -> {
+      env.volumeMounts().forEach(m -> {
         String localVolume = volumes.resolve(m.volumeRequest().id()).toString();
         hostConfig.appendBinds(HostConfig.Bind
             .from(localVolume)

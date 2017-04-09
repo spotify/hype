@@ -22,7 +22,6 @@ package com.spotify.hype.model;
 
 import static com.spotify.hype.model.ResourceRequest.CPU;
 import static com.spotify.hype.model.RunEnvironment.environment;
-import static com.spotify.hype.model.Secret.secret;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasEntry;
 import static org.junit.Assert.assertThat;
@@ -33,7 +32,7 @@ public class RunEnvironmentTest {
 
   @Test
   public void overrideResourceRequestsForSame() throws Exception {
-    RunEnvironment env = environment("image", secret("foo", "/bar"))
+    RunEnvironment env = environment("image")
         .withRequest(CPU.of("1"))
         .withRequest(CPU.of("7"));
 
