@@ -56,7 +56,7 @@ import io.fabric8.kubernetes.api.model.VolumeBuilder;
 import io.fabric8.kubernetes.api.model.VolumeMountBuilder;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientException;
-import io.fabric8.kubernetes.client.dsl.ClientPodResource;
+import io.fabric8.kubernetes.client.dsl.PodResource;
 import io.norberg.automatter.AutoMatter;
 import java.io.IOException;
 import java.net.URI;
@@ -111,7 +111,7 @@ class KubernetesDockerRunner implements DockerRunner {
     boolean nodeAssigned = false;
 
     while (true) {
-      final ClientPodResource<Pod, DoneablePod> pod = client.pods().withName(podName);
+      final PodResource<Pod, DoneablePod> pod = client.pods().withName(podName);
       final PodStatus status = pod.get().getStatus();
 
       if (!nodeAssigned && pod.get().getSpec().getNodeName() != null) {
@@ -172,7 +172,9 @@ class KubernetesDockerRunner implements DockerRunner {
     spec.getVolumes()
         .add(new VolumeBuilder()
             .withName(secret.name())
-            .withNewSecret(secret.name())
+            .withNewSecret()
+                .withSecretName(secret.name())
+            .endSecret()
             .build());
     volumeMountInfos.stream()
         .map(VolumeMountInfo::volume)

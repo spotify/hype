@@ -165,7 +165,9 @@ public class KubernetesDockerRunnerTest {
     final PodSpec spec = pod.getSpec();
     assertThat(spec.getVolumes(), hasItems(new VolumeBuilder()
         .withName(SECRET.name())
-        .withNewSecret(SECRET.name())
+        .withNewSecret()
+            .withSecretName(SECRET.name())
+        .endSecret()
         .build()));
 
     Container container = findHypeRunContainer(pod);
@@ -184,7 +186,9 @@ public class KubernetesDockerRunnerTest {
     final PodSpec spec = pod.getSpec();
     assertThat(spec.getVolumes(), hasItems(new VolumeBuilder()
         .withName(SECRET.name())
-        .withNewSecret(SECRET.name())
+        .withNewSecret()
+            .withSecretName(SECRET.name())
+        .endSecret()
         .build()));
 
     Container container = findHypeRunContainer(pod);
