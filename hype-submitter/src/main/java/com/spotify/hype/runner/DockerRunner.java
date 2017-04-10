@@ -25,6 +25,9 @@ import com.google.api.services.container.Container;
 import com.google.api.services.container.ContainerScopes;
 import com.google.api.services.container.model.Cluster;
 import com.google.common.base.Throwables;
+import com.spotify.docker.client.DefaultDockerClient;
+import com.spotify.docker.client.DockerClient;
+import com.spotify.docker.client.exceptions.DockerCertificateException;
 import com.spotify.hype.ContainerEngineCluster;
 import io.fabric8.kubernetes.client.ConfigBuilder;
 import io.fabric8.kubernetes.client.DefaultKubernetesClient;
@@ -57,6 +60,10 @@ public interface DockerRunner {
     return new KubernetesDockerRunner(kubernetesClient, volumeRepository);
   }
 
+  static DockerRunner local(DockerClient dockerClient) {
+    return new LocalDockerRunner(dockerClient);
+  }
+
   static KubernetesClient createKubernetesClient(ContainerEngineCluster gkeCluster) {
     try {
       final GoogleCredential credential = GoogleCredential.getApplicationDefault()
@@ -78,6 +85,14 @@ public interface DockerRunner {
 
       return new DefaultKubernetesClient(kubeConfig).inNamespace(NAMESPACE);
     } catch (IOException e) {
+      throw Throwables.propagate(e);
+    }
+  }
+
+  static DockerClient createDockerClient() {
+    try {
+      return DefaultDockerClient.fromEnv().build();
+    } catch (DockerCertificateException e) {
       throw Throwables.propagate(e);
     }
   }

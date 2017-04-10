@@ -28,6 +28,7 @@ import static com.spotify.hype.util.Util.randomAlphaNumeric;
 import static java.nio.file.Files.newInputStream;
 import static java.util.stream.Collectors.toList;
 
+import com.spotify.docker.client.DockerClient;
 import com.spotify.hype.gcs.RunManifest;
 import com.spotify.hype.gcs.RunManifestBuilder;
 import com.spotify.hype.gcs.StagingUtil;
@@ -67,6 +68,11 @@ public class Submitter implements Closeable {
   private final VolumeRepository volumeRepository;
   private final DockerRunner runner;
 
+  public static Submitter create(String bucketName) {
+    final ClasspathInspector classpathInspector = forLoader(Submitter.class.getClassLoader());
+    return create(classpathInspector, bucketName, null);
+  }
+
   public static Submitter create(String bucketName, ContainerEngineCluster cluster) {
     final ClasspathInspector classpathInspector = forLoader(Submitter.class.getClassLoader());
     return create(classpathInspector, bucketName, cluster);
@@ -84,9 +90,15 @@ public class Submitter implements Closeable {
     this.bucketName = Objects.requireNonNull(bucketName);
     this.classpathInspector = Objects.requireNonNull(classpathInspector);
 
-    final KubernetesClient client = getClient(cluster);
-    this.volumeRepository = new VolumeRepository(client);
-    this.runner = DockerRunner.kubernetes(client, volumeRepository);
+    if (cluster != null) {
+      final KubernetesClient client = getClient(cluster);
+      this.volumeRepository = new VolumeRepository(client);
+      this.runner = DockerRunner.kubernetes(client, volumeRepository);
+    } else {
+      this.volumeRepository = null;
+      final DockerClient dockerClient = DockerRunner.createDockerClient();
+      this.runner = DockerRunner.local(dockerClient);
+    }
   }
 
   public <T> T runOnCluster(Fn<T> fn, RunEnvironment environment) {
