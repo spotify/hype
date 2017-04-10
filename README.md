@@ -118,6 +118,48 @@ from the first submission.
 Coordinating metadata and parameters across all submission runs should be just as trivial as
 passing values from function calls into other function closure.
 
+## Load env pod from YAML
+
+Even though the `environment(<image>, ...)` builder can be convenient for simple cases, sometimes
+more control over the Kubernetes Pod is desired. For these cases a regular Pod YAML file can be
+used as a base for the `RunEnvironment`. Hype will still manage any used Volume Claims and
+mounts, but will leave all other details as you've specified them.
+
+Hype will expect at least these fields to be specified:
+
+- `spec.containers[name:hype-run]` - There must at least be a container named `hype-run`
+- `spec.containers[name:hype-run].image`  - The container must have an image specified
+
+_Hype will override the `spec.containers[name:hype-run].args` field, so don't set it._
+
+Here's a minimal Pod YAML file with some custom settings, `./src/main/resources/pod.yaml`:
+
+```yaml
+apiVersion: v1
+kind: Pod
+
+spec:
+  restartPolicy: Never # do not retry on failure
+
+  containers:
+  - name: hype-run
+    image: us.gcr.io/my-project/hype-runner:7
+    imagePullPolicy: Always # pull the image on each run
+
+    env: # additional environment variables
+    - name: EXAMPLE
+      value: my-env-value
+```
+
+Any resource requests added through the `RunEnvironment` API will merge with, and override the ones
+set in the YAML file.
+
+Then simply load your `RunEnvironment` through
+
+```scala
+val env = RunEnvironment.fromYaml("/pod.yaml")
+```
+
 ---
 
 _This project is in early development stages, expect anything you see to change._
