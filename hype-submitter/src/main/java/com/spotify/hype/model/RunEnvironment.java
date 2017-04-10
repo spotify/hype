@@ -21,20 +21,54 @@
 package com.spotify.hype.model;
 
 import io.norberg.automatter.AutoMatter;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
 
 @AutoMatter
 public interface RunEnvironment {
 
-  String image();
-  Secret secretMount();
+  EnvironmentBase base();
+  Secret secretMount(); // todo: make secret optional
   List<VolumeMount> volumeMounts();
   Map<String, String> resourceRequests();
 
+  interface EnvironmentBase {
+  }
+
+  @AutoMatter
+  interface SimpleBase extends EnvironmentBase {
+    String image();
+  }
+
+  @AutoMatter
+  interface YamlBase extends EnvironmentBase {
+    Path yamlPath();
+  }
+
   static RunEnvironment environment(String image, Secret secret) {
     return new RunEnvironmentBuilder()
-        .image(image)
+        .base(new SimpleBaseBuilder().image(image).build())
+        .secretMount(secret)
+        .build();
+  }
+
+  static RunEnvironment fromYaml(String resourcePath, Secret secret) {
+    final URI resourceUri;
+    try {
+      resourceUri = RunEnvironment.class.getResource(resourcePath).toURI();
+    } catch (URISyntaxException e) {
+      throw new RuntimeException(e);
+    }
+    return fromYaml(Paths.get(resourceUri), secret);
+  }
+
+  static RunEnvironment fromYaml(Path path, Secret secret) {
+    return new RunEnvironmentBuilder()
+        .base(new YamlBaseBuilder().yamlPath(path).build())
         .secretMount(secret)
         .build();
   }
