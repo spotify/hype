@@ -1,7 +1,7 @@
 package com.spotify.hype.word2vec
 
 import java.net.URI
-import java.nio.file.{Files, Paths}
+import java.nio.file.{CopyOption, Files, Paths, StandardCopyOption}
 
 import com.spotify.hype.HypeModule
 import org.slf4j.LoggerFactory
@@ -13,6 +13,7 @@ import scala.sys.process._
   */
 case class W2vParams(train: String,
                      output: String,
+                     cv: String,
                      saveVocabulary: Option[String] = None,
                      readVocabulary: Option[String] = None,
                      size: Option[Int] = None,
@@ -27,7 +28,7 @@ case class W2vParams(train: String,
                      binaryOutput: Option[Boolean] = None,
                      cbow: Option[Boolean] = None)
 
-case class Word2vec(p: W2vParams) extends HypeModule[Int] {
+case class Word2vec(p: W2vParams) extends HypeModule[String] {
 
   @transient private lazy val log = LoggerFactory.getLogger(classOf[Word2vec])
 
@@ -48,7 +49,7 @@ case class Word2vec(p: W2vParams) extends HypeModule[Int] {
       p.cbow.map(s => " -cbow " + s).getOrElse("")
   }
 
-  override def getFn: Int = {
+  override def getFn: String = {
 
     val tempDirectory = Files.createTempDirectory("")
 
@@ -79,10 +80,12 @@ case class Word2vec(p: W2vParams) extends HypeModule[Int] {
     // Copy output if necessary
     if (outputPath.toUri.getScheme != "file") {
       log.info(s"Copying $output to $outputPath")
-      Files.copy(output, outputPath)
+      Files.copy(output, outputPath, StandardCopyOption.REPLACE_EXISTING)
     }
 
-    retCode
+    // Evaluate model
+    val cvPath = Paths.get(URI.create(p.cv))
+    MissingWordAccuracy.eval(output.toString, cvPath.toString)
   }
 
   override def getImage: String = "us.gcr.io/datawhere-test/hype-word2vec:5"

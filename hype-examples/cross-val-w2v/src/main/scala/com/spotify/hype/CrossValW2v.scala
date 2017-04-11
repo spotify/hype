@@ -48,20 +48,21 @@ object CrossValW2v {
 
     // Run w2v
     val trainingSet = URI.create("file://" + localTrainFile).toString
+    val cvSet = URI.create("file://" + localCVFile).toString
     val gcsOutputDir = URI.create("gs://hype-test/output/")
 
     // FIXME: serializing URIs sucks!
     val w2vParams: List[W2vParams] = List(
-      W2vParams(trainingSet, gcsOutputDir.resolve("train1.txt").toString, hierarchicalSoftmax = Some(true)),
-      W2vParams(trainingSet, gcsOutputDir.resolve("train2.txt").toString, hierarchicalSoftmax = Some(false))
+      W2vParams(trainingSet, gcsOutputDir.resolve("train1.txt").toString, cvSet.toString, hierarchicalSoftmax = Some(true)),
+      W2vParams(trainingSet, gcsOutputDir.resolve("train2.txt").toString, cvSet.toString, hierarchicalSoftmax = Some(false))
     )
 
-    for (w2vParam <- w2vParams.par;
+    val evals = for (w2vParam <- w2vParams.par;
          w2vModule = Word2vec(w2vParam))
       yield submitter.runOnCluster(w2vModule.getFn, getEnv(w2vModule.getImage)
         .withMount(ssd10Gi.mountReadOnly(mount)))
 
-    // Evaluate
+    evals.foreach(log.info)
   }
 
   def main(args: Array[String]): Unit = {

@@ -30,7 +30,10 @@ lazy val localsplit: Project = project.in(file("local-split")).settings(
 
 lazy val word2vec: Project = project.in(file("word2vec")).settings(
   commonSettings,
-  libraryDependencies ++= commonLibraryDependencies
+  libraryDependencies ++= commonLibraryDependencies ++ Seq(
+    "org.scalanlp" %% "breeze" % "0.13",
+    "org.scalatest" %% "scalatest" % "3.0.1"
+  )
 ).dependsOn(
   localsplit // FIXME: just for the HypeModule
 )
