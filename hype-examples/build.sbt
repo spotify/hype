@@ -18,7 +18,9 @@ lazy val root: Project = Project(
   "hype-examples",
   file(".")
 ).aggregate(
-  localsplit
+  localsplit,
+  word2vec,
+  crossValW2v
 )
 
 lazy val localsplit: Project = project.in(file("local-split")).settings(
@@ -31,4 +33,14 @@ lazy val word2vec: Project = project.in(file("word2vec")).settings(
   libraryDependencies ++= commonLibraryDependencies
 ).dependsOn(
   localsplit // FIXME: just for the HypeModule
+)
+
+lazy val crossValW2v: Project = project.in(file("cross-val-w2v")).settings(
+  commonSettings,
+  libraryDependencies ++= commonLibraryDependencies ++ Seq(
+    "com.spotify" % "hype-submitter" % "0.0.12-SNAPSHOT"
+  )
+).dependsOn(
+  localsplit,
+  word2vec
 )
