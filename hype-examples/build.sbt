@@ -21,10 +21,14 @@ lazy val root: Project = Project(
   localsplit
 )
 
-lazy val localsplit: Project = Project(
-  "local-split",
-  file("local-split")
-).settings(
+lazy val localsplit: Project = project.in(file("local-split")).settings(
   commonSettings,
   libraryDependencies ++= commonLibraryDependencies
+)
+
+lazy val word2vec: Project = project.in(file("word2vec")).settings(
+  commonSettings,
+  libraryDependencies ++= commonLibraryDependencies
+).dependsOn(
+  localsplit // FIXME: just for the HypeModule
 )
