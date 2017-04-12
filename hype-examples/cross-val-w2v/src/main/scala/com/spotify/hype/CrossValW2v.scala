@@ -6,6 +6,7 @@ import java.nio.file.Paths
 import com.spotify.hype.ContainerEngineCluster.containerEngineCluster
 import com.spotify.hype.model.Secret.secret
 import com.spotify.hype.model.{RunEnvironment, VolumeRequest}
+import com.spotify.hype.model.ResourceRequest.CPU
 import com.spotify.hype.split.{GcsToLocal, LocalSplit}
 import com.spotify.hype.util.Fn
 import com.spotify.hype.word2vec.{W2vParams, Word2vec}
@@ -20,20 +21,20 @@ object CrossValW2v {
   private val log = LoggerFactory.getLogger(CrossValW2v.getClass)
 
   // Mount disk
-  val ssd10Gi: VolumeRequest = VolumeRequest.volumeRequest("slow", "15Gi")
+  val ssd: VolumeRequest = VolumeRequest.volumeRequest("fast", "15Gi")
   val mount: String = "/usr/share/volume"
 
   def run(submitter: Submitter): Unit = {
 
     // Download gcs file locally
-    val gcsInputPath: String = "gs://hype-test/data/questions-phrases.txt"
+    val gcsInputPath: String = "gs://hype-test/data/wiki/WestburyLab.Wikipedia.Corpus.100MB.txt"
     val localTextFile: String = Paths.get(mount)
       .resolve(Paths.get(gcsInputPath).getFileName)
       .toString
 
     val gcsToLocal = GcsToLocal(gcsInputPath, localTextFile)
     submitter.runOnCluster(gcsToLocal.getFn, getEnv(gcsToLocal.getImage)
-      .withMount(ssd10Gi.mountReadWrite(mount)))
+      .withMount(ssd.mountReadWrite(mount)))
 
     // Split data
     val localTrainFile = Paths.get(mount, "train.txt").toString
@@ -44,7 +45,7 @@ object CrossValW2v {
       localTextFile, localTrainFile, localTestFile, localCVFile)
 
     submitter.runOnCluster(localSplit.getFn, getEnv(localSplit.getImage)
-      .withMount(ssd10Gi.mountReadWrite(mount)))
+      .withMount(ssd.mountReadWrite(mount)))
 
     // Run w2v
     val trainingSet = URI.create("file://" + localTrainFile).toString
@@ -52,22 +53,24 @@ object CrossValW2v {
     val gcsOutputDir = URI.create("gs://hype-test/output/")
 
     // FIXME: serializing URIs sucks!
+    val cpu = 12
     val w2vParams: List[W2vParams] = List(
-      W2vParams(trainingSet, gcsOutputDir.resolve("train1.txt").toString, cvSet.toString, hierarchicalSoftmax = Some(true)),
-      W2vParams(trainingSet, gcsOutputDir.resolve("train2.txt").toString, cvSet.toString, hierarchicalSoftmax = Some(false))
+      W2vParams(trainingSet, gcsOutputDir.resolve("train1.txt").toString, cvSet.toString, threads = Some(cpu), cbow = Some(true)),
+      W2vParams(trainingSet, gcsOutputDir.resolve("train2.txt").toString, cvSet.toString, threads = Some(cpu), cbow = Some(false))
     )
 
     val evals = for (w2vParam <- w2vParams.par;
          w2vModule = Word2vec(w2vParam))
       yield submitter.runOnCluster(w2vModule.getFn, getEnv(w2vModule.getImage)
-        .withMount(ssd10Gi.mountReadOnly(mount)))
+        .withMount(ssd.mountReadOnly(mount))
+        .withRequest(CPU.of(cpu.toString)))
 
     evals.foreach(log.info)
   }
 
   def main(args: Array[String]): Unit = {
     val cluster: ContainerEngineCluster = containerEngineCluster(
-      "datawhere-test", "us-east1-d", "hype-test")
+      "datawhere-test", "us-east1-d", "hype-ml-test")
     val submitter: Submitter = Submitter.create("hype-test", cluster)
 
     try {

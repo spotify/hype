@@ -1,7 +1,7 @@
 package com.spotify.hype.word2vec
 
 import java.net.URI
-import java.nio.file.{CopyOption, Files, Paths, StandardCopyOption}
+import java.nio.file.{Files, Paths, StandardCopyOption}
 
 import com.spotify.hype.HypeModule
 import org.slf4j.LoggerFactory
@@ -39,14 +39,14 @@ case class Word2vec(p: W2vParams) extends HypeModule[String] {
       p.size.map(s => " -size " + s).getOrElse("") +
       p.window.map(s => " -window " + s).getOrElse("") +
       p.sample.map(s => " -sample " + s).getOrElse("") +
-      p.hierarchicalSoftmax.map(s => " -hs " + s).getOrElse("") +
+      p.hierarchicalSoftmax.map(s => " -hs " + s.toInt).getOrElse("") +
       p.negativeExamples.map(s => " -negative " + s).getOrElse("") +
       p.threads.map(s => " -threads " + s).getOrElse("") +
       p.minCount.map(s => " -min-count " + s).getOrElse("") +
       p.alpha.map(s => " -alpha " + s).getOrElse("") +
       p.classes.map(s => " -classes " + s).getOrElse("") +
-      p.binaryOutput.map(s => " -binary " + s).getOrElse("") +
-      p.cbow.map(s => " -cbow " + s).getOrElse("")
+      p.binaryOutput.map(s => " -binary " + s.toInt).getOrElse("") +
+      p.cbow.map(s => " -cbow " + s.toInt).getOrElse("")
   }
 
   override def getFn: String = {
@@ -89,4 +89,6 @@ case class Word2vec(p: W2vParams) extends HypeModule[String] {
   }
 
   override def getImage: String = "us.gcr.io/datawhere-test/hype-word2vec:5"
+
+  private implicit def toInT(b: Boolean): Int = if (b) 1 else 0
 }
