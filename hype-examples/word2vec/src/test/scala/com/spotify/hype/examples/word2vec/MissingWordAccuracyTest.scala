@@ -1,4 +1,4 @@
-package com.spotify.hype.word2vec
+package com.spotify.hype.examples.word2vec
 
 import java.io.PrintWriter
 import java.nio.file.{Files, Paths}
@@ -7,9 +7,6 @@ import breeze.linalg.DenseVector
 import org.scalatest._
 
 
-/**
-  * Created by romain on 4/11/17.
-  */
 class MissingWordAccuracyTest extends FlatSpec with Matchers {
 
   val vecs = Map(

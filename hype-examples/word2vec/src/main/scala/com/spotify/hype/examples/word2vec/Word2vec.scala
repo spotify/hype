@@ -1,4 +1,4 @@
-package com.spotify.hype.word2vec
+package com.spotify.hype.examples.word2vec
 
 import java.net.URI
 import java.nio.file.{Files, Paths, StandardCopyOption}
@@ -8,9 +8,6 @@ import org.slf4j.LoggerFactory
 
 import scala.sys.process._
 
-/**
-  * Created by romain on 4/10/17.
-  */
 case class W2vParams(train: String,
                      output: String,
                      cv: String,

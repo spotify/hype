@@ -1,4 +1,4 @@
-package com.spotify.hype.split
+package com.spotify.hype.examples.split
 
 import com.spotify.hype.HypeModule
 

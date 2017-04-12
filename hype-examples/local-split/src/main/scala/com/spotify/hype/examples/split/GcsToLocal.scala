@@ -1,13 +1,10 @@
-package com.spotify.hype.split
+package com.spotify.hype.examples.split
 
 import java.net.URI
 import java.nio.file.{Files, Paths}
 
 import com.spotify.hype.HypeModule
 
-/**
-  * Created by romain on 4/10/17.
-  */
 case class GcsToLocal(gcsInputPath: String,
                       localTextFile: String) extends HypeModule[String] {
 

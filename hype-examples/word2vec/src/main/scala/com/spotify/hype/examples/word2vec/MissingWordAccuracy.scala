@@ -1,4 +1,4 @@
-package com.spotify.hype.word2vec
+package com.spotify.hype.examples.word2vec
 
 import breeze.linalg._
 import breeze.linalg.functions.cosineDistance

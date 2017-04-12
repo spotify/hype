@@ -1,21 +1,19 @@
-package com.spotify.hype
+package com.spotify.hype.examples
 
 import java.net.URI
 import java.nio.file.Paths
 
 import com.spotify.hype.ContainerEngineCluster.containerEngineCluster
+import com.spotify.hype.examples.split.{GcsToLocal, LocalSplit}
+import com.spotify.hype.examples.word2vec.{W2vParams, Word2vec}
+import com.spotify.hype.model.ResourceRequest.CPU
 import com.spotify.hype.model.Secret.secret
 import com.spotify.hype.model.{RunEnvironment, VolumeRequest}
-import com.spotify.hype.model.ResourceRequest.CPU
-import com.spotify.hype.split.{GcsToLocal, LocalSplit}
 import com.spotify.hype.util.Fn
-import com.spotify.hype.word2vec.{W2vParams, Word2vec}
+import com.spotify.hype.{ContainerEngineCluster, HypeModule, Submitter}
 import org.slf4j.LoggerFactory
 
 
-/**
-  * Created by romain on 4/10/17.
-  */
 object CrossValW2v {
 
   private val log = LoggerFactory.getLogger(CrossValW2v.getClass)
@@ -60,7 +58,7 @@ object CrossValW2v {
     )
 
     val evals = for (w2vParam <- w2vParams.par;
-         w2vModule = Word2vec(w2vParam))
+                     w2vModule = Word2vec(w2vParam))
       yield submitter.runOnCluster(w2vModule.getFn, getEnv(w2vModule.getImage)
         .withMount(ssd.mountReadOnly(mount))
         .withRequest(CPU.of(cpu.toString)))
