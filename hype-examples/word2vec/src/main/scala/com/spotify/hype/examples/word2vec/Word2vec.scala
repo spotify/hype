@@ -85,7 +85,7 @@ case class Word2vec(p: W2vParams) extends HypeModule[String] {
     MissingWordAccuracy.eval(output.toString, cvPath.toString)
   }
 
-  override def getImage: String = "us.gcr.io/datawhere-test/hype-word2vec:5"
+  override def getImage: String = "us.gcr.io/datawhere-test/hype-word2vec:7"
 
   private implicit def toInT(b: Boolean): Int = if (b) 1 else 0
 }

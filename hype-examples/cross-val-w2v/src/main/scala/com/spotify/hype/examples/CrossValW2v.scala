@@ -53,8 +53,8 @@ object CrossValW2v {
     // FIXME: serializing URIs sucks!
     val cpu = 12
     val w2vParams: List[W2vParams] = List(
-      W2vParams(trainingSet, gcsOutputDir.resolve("train1.txt").toString, cvSet.toString, threads = Some(cpu), cbow = Some(true)),
-      W2vParams(trainingSet, gcsOutputDir.resolve("train2.txt").toString, cvSet.toString, threads = Some(cpu), cbow = Some(false))
+      W2vParams(trainingSet, gcsOutputDir.resolve("trainA.txt").toString, cvSet.toString, threads = Some(cpu), cbow = Some(true)),
+      W2vParams(trainingSet, gcsOutputDir.resolve("trainB.txt").toString, cvSet.toString, threads = Some(cpu), cbow = Some(false))
     )
 
     val evals = for (w2vParam <- w2vParams.par;
