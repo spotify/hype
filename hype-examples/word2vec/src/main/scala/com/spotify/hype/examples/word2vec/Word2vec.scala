@@ -81,6 +81,7 @@ case class Word2vec(p: W2vParams) extends HypeModule[String] {
     }
 
     // Evaluate model
+    log.info(s"Running evaluation...")
     val cvPath = Paths.get(URI.create(p.cv))
     MissingWordAccuracy.eval(output.toString, cvPath.toString)
   }

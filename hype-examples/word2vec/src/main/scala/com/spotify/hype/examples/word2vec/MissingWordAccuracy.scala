@@ -43,17 +43,21 @@ object MissingWordAccuracy {
 
     // Missing word accuracy
     val guesses = mutable.ListBuffer[Float]()
-    for (line <- Source.fromFile(testSet).getLines()) {
-      val sentence = line.split("\\W+").filter(wordVecs.contains).toList
-      var rightGuesses = 0
-      if (sentence.length > 1) {
-        for (i <- sentence.indices) {
-          val rightGuess = if (
-            MissingWordAccuracy.mkGuess(wordVecs, sentence, i, words(wordMult.sample))) 1
-          else 0
-          rightGuesses += rightGuess
+    for (lines <- Source.fromFile(testSet).getLines().grouped(1024)) {
+      for(line <- lines.par) {
+        val sentence = line.split("\\W+").filter(wordVecs.contains).toList
+        var rightGuesses = 0
+        if (sentence.length >= 2) {
+          for (word <- sentence) {
+            val sentenceVec = sum(sentence.map(wordVecs))
+            val rightGuess = if (MissingWordAccuracy.mkGuess(sentenceVec,
+              wordVecs(word),
+              wordVecs(words(wordMult.sample)))) 1
+            else 0
+            rightGuesses += rightGuess
+          }
+          guesses += rightGuesses / sentence.length.toFloat
         }
-        guesses += rightGuesses / sentence.length.toFloat
       }
     }
 
@@ -69,14 +73,10 @@ object MissingWordAccuracy {
     """.stripMargin
   }
 
-  def mkGuess(wordVecs: Map[String, DenseVector[Double]],
-              sentence: List[String],
-              i: Int,
-              randomWord: String): Boolean = {
-    val context = sentence.take(i) ++ sentence.takeRight(sentence.length - i - 1)
-    val contextVec = sum(context.map(wordVecs)) /:/ sentence.length.toDouble
-    val randomWordVec = wordVecs(randomWord)
-    val targetWordVec = wordVecs(sentence(i))
+  def mkGuess(sentenceVec: DenseVector[Double],
+              targetWordVec: DenseVector[Double],
+              randomWordVec: DenseVector[Double]): Boolean = {
+    val contextVec = sentenceVec - targetWordVec
     cosineDistance(targetWordVec, contextVec) < cosineDistance(randomWordVec, contextVec)
   }
 }

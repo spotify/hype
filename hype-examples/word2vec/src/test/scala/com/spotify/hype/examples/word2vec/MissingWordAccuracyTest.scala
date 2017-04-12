@@ -3,7 +3,7 @@ package com.spotify.hype.examples.word2vec
 import java.io.PrintWriter
 import java.nio.file.{Files, Paths}
 
-import breeze.linalg.DenseVector
+import breeze.linalg.{DenseVector, sum}
 import org.scalatest._
 
 
@@ -39,8 +39,8 @@ class MissingWordAccuracyTest extends FlatSpec with Matchers {
   }
 
   it should "work :)" in {
-    MissingWordAccuracy.mkGuess(vecs, List("w1", "w3", "w1"), 1, "w1") should be(false)
-    MissingWordAccuracy.mkGuess(vecs, List("w1", "w3", "w2"), 2, "w4") should be(true)
+    MissingWordAccuracy.mkGuess(sum(List("w1", "w3", "w1").map(vecs)), vecs("w3"), vecs("w1")) should be(false)
+    MissingWordAccuracy.mkGuess(sum(List("w1", "w3", "w2").map(vecs)), vecs("w2"), vecs("w4")) should be(true)
     noException should be thrownBy MissingWordAccuracy.eval(tmpVecFile, tmpTextFile)
   }
 
