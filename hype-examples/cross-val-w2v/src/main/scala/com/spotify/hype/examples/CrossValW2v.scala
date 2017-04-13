@@ -4,6 +4,7 @@ import java.net.URI
 import java.nio.file.Paths
 
 import com.spotify.hype.ContainerEngineCluster.containerEngineCluster
+import com.spotify.hype.examples.lexvec.LexVec
 import com.spotify.hype.examples.split.LocalSplit
 import com.spotify.hype.examples.word2vec.{W2vParams, Word2vec}
 import com.spotify.hype.model.ResourceRequest.CPU
@@ -12,7 +13,6 @@ import com.spotify.hype.model.{RunEnvironment, VolumeRequest}
 import com.spotify.hype.util.Fn
 import com.spotify.hype.{ContainerEngineCluster, Submitter}
 import org.slf4j.LoggerFactory
-
 
 object CrossValW2v {
 
@@ -45,25 +45,22 @@ object CrossValW2v {
     submitter.runOnCluster(localSplit.getFn, getEnv(localSplit.getImage)
       .withMount(ssd.mountReadWrite(mount)))
 
-    // Run w2v
-    val trainingSet = URI.create("file://" + localTrainFile).toString
-    val cvSet = URI.create("file://" + localCVFile).toString
+    // Run Models
     val gcsOutputDir = URI.create("gs://hype-test/output/")
 
-    // FIXME: serializing URIs sucks!
     val cpu = 12
-    val w2vParams: List[W2vParams] = List(
-      W2vParams(trainingSet, gcsOutputDir.resolve("trainA.txt").toString, cvSet.toString, threads = Some(cpu), cbow = Some(true)),
-      W2vParams(trainingSet, gcsOutputDir.resolve("trainB.txt").toString, cvSet.toString, threads = Some(cpu), cbow = Some(false))
+    val models: List[HypeModule[Seq[(String, String)]]] = List(
+      Word2vec(W2vParams(localTrainFile, gcsOutputDir.resolve("trainA.txt").toString, localCVFile, threads = Some(cpu), cbow = Some(true))),
+      Word2vec(W2vParams(localTrainFile, gcsOutputDir.resolve("trainB.txt").toString, localCVFile, threads = Some(cpu), cbow = Some(false))),
+      LexVec(localTrainFile, gcsOutputDir.resolve("trainC.txt").toString, localCVFile, "threads" -> cpu.toString)
     )
 
-    val evals = for (w2vParam <- w2vParams.par;
-                     w2vModule = Word2vec(w2vParam))
-      yield submitter.runOnCluster(w2vModule.getFn, getEnv(w2vModule.getImage)
+    val evals = for (model <- models.par)
+      yield submitter.runOnCluster(model.getFn, getEnv(model.getImage)
         .withMount(ssd.mountReadOnly(mount))
         .withRequest(CPU.of(cpu.toString)))
 
-    evals.foreach(log.info)
+    evals.map(_.toString()).foreach(log.info)
   }
 
   def main(args: Array[String]): Unit = {

@@ -12,7 +12,7 @@ case class LocalSplit(inputFile: String,
                       cvPct: Float = .2f,
                       testPct: Float = .1f) extends HypeModule[Int] {
 
-  override def getImage: String = "us.gcr.io/datawhere-test/split:5"
+  override def getImage: String = "us.gcr.io/datawhere-test/split:6"
 
   override def getFn = {
     s"python /kisssplit.py $inputFile $trainPct $testPct $cvPct $trainFile $testFile $cvFile" !

@@ -1,13 +1,6 @@
 package com.spotify.hype.examples.word2vec
 
-import java.net.URI
-import java.nio.file.{Files, Paths, StandardCopyOption}
-
-import org.slf4j.LoggerFactory
-import com.spotify.hype.examples.evaluations.MissingWordAccuracy
-import com.spotify.hype.examples.{GSUtilCp, HypeModule}
-
-import scala.sys.process._
+import com.spotify.hype.examples.{CmdLineEmbeddingModel, HypeModule}
 
 case class W2vParams(train: String,
                      output: String,
@@ -26,11 +19,9 @@ case class W2vParams(train: String,
                      binaryOutput: Option[Boolean] = None,
                      cbow: Option[Boolean] = None)
 
-case class Word2vec(p: W2vParams) extends HypeModule[String] {
+case class Word2vec(p: W2vParams) extends HypeModule[Seq[(String, String)]] with CmdLineEmbeddingModel {
 
-  @transient private lazy val log = LoggerFactory.getLogger(classOf[Word2vec])
-
-  private def getW2vCmd(train: String, output: String): String = {
+  override def cmd(train: String, output: String): String = {
     s"word2vec -train $train -output $output" +
       p.saveVocabulary.map(s => " -save-vocab " + s).getOrElse("") +
       p.readVocabulary.map(s => " -read-vocab " + s).getOrElse("") +
@@ -47,44 +38,8 @@ case class Word2vec(p: W2vParams) extends HypeModule[String] {
       p.cbow.map(s => " -cbow " + s.toInt).getOrElse("")
   }
 
-  override def getFn: String = {
-
-    val tempDirectory = Files.createTempDirectory("")
-
-    // Download training set if non local
-    val trainPath = Paths.get(URI.create(p.train))
-    val train = if (trainPath.toUri.getScheme == "gs") {
-      val localInput = tempDirectory.resolve(trainPath.getFileName)
-      log.info(s"Copying $trainPath to $localInput")
-      GSUtilCp(trainPath.toString, localInput.toString).getFn
-      localInput
-    } else {
-      trainPath
-    }
-
-    // Intermediate output if non local
-    val outputPath = Paths.get(URI.create(p.output))
-    val output = if (outputPath.toUri.getScheme != "file") {
-      tempDirectory.resolve(trainPath.getFileName)
-    } else {
-      outputPath
-    }
-
-    // Effectively run w2v
-    val w2vCmd = getW2vCmd(train.toString, output.toString)
-    log.info(s"Running: $w2vCmd")
-    val retCode = w2vCmd !
-
-    // Copy output if necessary
-    if (outputPath.toUri.getScheme == "gs") {
-      log.info(s"Copying $output to $outputPath")
-      GSUtilCp(output.toString, outputPath.toString).getFn
-    }
-
-    // Evaluate model
-    log.info(s"Running evaluation...")
-    val cvPath = Paths.get(URI.create(p.cv))
-    MissingWordAccuracy.eval(output.toString, cvPath.toString)
+  override def getFn: Seq[(String, String)] = {
+    run(p.train, p.output, p.cv)
   }
 
   override def getImage: String = "us.gcr.io/datawhere-test/hype-word2vec:9"

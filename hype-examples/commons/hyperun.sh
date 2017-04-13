@@ -1,3 +1,0 @@
-#!/bin/sh
-
-hype-run $@

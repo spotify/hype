@@ -11,6 +11,7 @@ case class GSUtilCp(inPath: String,
 
 
   override def getFn = {
+    s"gcloud auth activate-service-account --key-file=${System.getenv().get("GOOGLE_APPLICATION_CREDENTIALS")}" !
     val cmd = s"gsutil -m cp -r $inPath $outPath"
     log.info(cmd)
     cmd !

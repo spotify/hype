@@ -21,7 +21,8 @@ lazy val root: Project = Project(
   commons,
   localsplit,
   word2vec,
-  crossValW2v
+  crossValW2v,
+  lexvec
 )
 
 lazy val commons : Project = project.in(file("commons")).settings(
@@ -46,6 +47,13 @@ lazy val word2vec: Project = project.in(file("word2vec")).settings(
   commons
 )
 
+lazy val lexvec: Project = project.in(file("lexvec")).settings(
+  commonSettings,
+  libraryDependencies ++= commonLibraryDependencies
+).dependsOn(
+  commons
+)
+
 lazy val crossValW2v: Project = project.in(file("cross-val-w2v")).settings(
   commonSettings,
   libraryDependencies ++= commonLibraryDependencies ++ Seq(
@@ -53,5 +61,6 @@ lazy val crossValW2v: Project = project.in(file("cross-val-w2v")).settings(
   )
 ).dependsOn(
   localsplit,
-  word2vec
+  word2vec,
+  lexvec
 )

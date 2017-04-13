@@ -16,7 +16,7 @@ import scala.io.Source
 object MissingWordAccuracy {
 
   def eval(wordEmbeddings: String,
-           testSet: String): String = {
+           testSet: String): Seq[(String, String)] = {
 
     // Parse vectors
     val wordVecs = Source.fromFile(wordEmbeddings)
@@ -63,14 +63,12 @@ object MissingWordAccuracy {
 
     // Some descriptive stats
     val d = DenseVector(guesses.toArray)
-    s"""
-       |{
-       | "#sentences": ${guesses.length},
-       | "mean": ${mean(d)},
-       | "stddev": ${stddev(d)},
-       | "median": ${median(d)}
-       |}
-    """.stripMargin
+    List(
+      "#sentences" -> guesses.length.toString,
+      "mean" -> mean(d).toString,
+      "stddev" -> stddev(d).toString,
+      "median" -> median(d).toString
+    )
   }
 
   def mkGuess(sentenceVec: DenseVector[Double],
