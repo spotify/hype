@@ -36,6 +36,7 @@ import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
@@ -143,7 +144,12 @@ public class LocalDockerRunner implements DockerRunner {
       LOG.info("Started container {}", creation.id());
       final Optional<URI> uri = blockUntilComplete(creation.id(), terminationLog);
       if(!keepContainer) {
-        client.removeContainer(creation.id());
+        if (Objects.equals(System.getenv("CIRCLECI"), "true")) {
+          LOG.info("Running on CircleCi - won't delete container due to " +
+                   " https://circleci.com/docs/1.0/docker-btrfs-error/");
+        } else {
+          client.removeContainer(creation.id());
+        }
       }
       return uri.map(u -> stagingContinuationFile.toPath()
           .resolveSibling(Paths.get(u).toFile().getName()).toUri());
