@@ -27,6 +27,7 @@ import static java.nio.file.StandardOpenOption.TRUNCATE_EXISTING;
 import static java.nio.file.StandardOpenOption.WRITE;
 import static java.util.Collections.emptyMap;
 
+import com.google.common.collect.Sets;
 import com.spotify.hype.gcs.ManifestLoader;
 import com.spotify.hype.gcs.RunManifest;
 import java.io.IOException;
@@ -35,24 +36,27 @@ import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
+import java.nio.file.OpenOption;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.spi.FileSystemProvider;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Properties;
+import java.util.Set;
 
 /**
- * Capsule caplet that downloads a Google Cloud Storage (gs://) run-manifest to a temp directory
- * and adds the included files to the application JVM classpath.
+ * Capsule caplet that downloads a run-manifest to a temp directory and adds the included files to
+ * the application JVM classpath.
  *
- * <p>It takes one command line arguments: {@code <run-manifest-gcs-uri>}.
+ * <p>It takes one command line arguments: {@code <run-manifest-uri>}.
  *
  * <p>After staging the manifest contents locally, it invokes the inner JVM by replacing the first
  * argument with a path to the local temp directory. It also adds two additional arguments to the
  * application JVM, pointing to 1. the continuation file, and 2. to an output file which can be
- * written to. If the output file is written, it will be uploaded to the GCS staging uri when the
+ * written to. If the output file is written, it will be uploaded to the staging uri when the
  * application JVM exits.
  */
 public class Hypelet extends Capsule {
@@ -80,7 +84,7 @@ public class Hypelet extends Capsule {
     }
 
     if (args.size() < 1) {
-      throw new IllegalArgumentException("Usage: <run-manifest-gcs-uri>");
+      throw new IllegalArgumentException("Usage: <run-manifest-uri>");
     }
 
     System.out.println("=== HYPE RUN CAPSULE (v" + getVersion() + ") ===");
@@ -121,10 +125,14 @@ public class Hypelet extends Capsule {
       final Path returnFilePath = stagingDir.resolve(returnFile);
       if (Files.exists(returnFilePath)) {
         try {
-          System.out.println("Uploading serialized return value: " + returnFilePath);
           final Path uploadPath = manifestPath.resolveSibling(returnFile);
-          try (WritableByteChannel writer = Files.newByteChannel(uploadPath,
-              WRITE, CREATE_NEW, withMimeType(BINARY))) {
+          System.out.println("Uploading serialized return value: `" + returnFilePath
+              + "` to `" + uploadPath.toString() + "`");
+          Set<OpenOption> options = Sets.newHashSet(WRITE, CREATE_NEW);
+          if (Objects.equals(uploadPath.toUri().getScheme(), "gs")) {
+            options.add(withMimeType(BINARY));
+          }
+          try (WritableByteChannel writer = Files.newByteChannel(uploadPath, options)) {
             com.google.common.io.Files.asByteSource(returnFilePath.toFile())
                 .copyTo(Channels.newOutputStream(writer));
           }
@@ -182,6 +190,10 @@ public class Hypelet extends Capsule {
   }
 
   private static FileSystemProvider loadFileSystemProvider(URI uri) throws IOException {
-    return FileSystems.newFileSystem(uri, emptyMap(), Hypelet.class.getClassLoader()).provider();
+    if (Objects.equals(uri.getScheme(), "file")) {
+      return FileSystems.getFileSystem(URI.create("file:///")).provider();
+    } else {
+      return FileSystems.newFileSystem(uri, emptyMap(), Hypelet.class.getClassLoader()).provider();
+    }
   }
 }
