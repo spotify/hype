@@ -153,7 +153,7 @@ class KubernetesDockerRunner implements DockerRunner {
   Pod createPod(RunSpec runSpec) {
     final String podName = HYPE_RUN + "-" + randomAlphaNumeric(8);
     final RunEnvironment env = runSpec.runEnvironment();
-    final Secret secret = env.secretMount();
+    final List<Secret> secrets = env.secretMounts();
     final StagedContinuation stagedContinuation = runSpec.stagedContinuation();
     final List<VolumeMountInfo> volumeMountInfos = volumeMountInfos(env.volumeMounts());
 
@@ -169,13 +169,14 @@ class KubernetesDockerRunner implements DockerRunner {
     final PodSpec spec = basePod.getSpec();
 
     // add volumes
-    spec.getVolumes()
-        .add(new VolumeBuilder()
-            .withName(secret.name())
-            .withNewSecret()
-                .withSecretName(secret.name())
-            .endSecret()
-            .build());
+    secrets.forEach(s ->
+        spec.getVolumes()
+            .add(new VolumeBuilder()
+                .withName(s.name())
+                .withNewSecret()
+                .withSecretName(s.name())
+                .endSecret()
+                .build()));
     volumeMountInfos.stream()
         .map(VolumeMountInfo::volume)
         .forEach(spec.getVolumes()::add);
@@ -183,12 +184,13 @@ class KubernetesDockerRunner implements DockerRunner {
     final Container container = findHypeRunContainer(basePod);
 
     // add volume mounts
-    container.getVolumeMounts()
-        .add(new VolumeMountBuilder()
-            .withName(secret.name())
-            .withMountPath(secret.mountPath())
-            .withReadOnly(true)
-            .build());
+    secrets.forEach(s ->
+        container.getVolumeMounts()
+            .add(new VolumeMountBuilder()
+                .withName(s.name())
+                .withMountPath(s.mountPath())
+                .withReadOnly(true)
+                .build()));
     volumeMountInfos.stream()
         .map(VolumeMountInfo::volumeMount)
         .forEach(container.getVolumeMounts()::add);
