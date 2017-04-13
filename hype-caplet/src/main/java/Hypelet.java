@@ -18,10 +18,18 @@
  * -/-/-
  */
 
+import static com.google.cloud.storage.contrib.nio.CloudStorageOptions.withMimeType;
+import static com.google.common.base.Charsets.UTF_8;
+import static com.spotify.hype.util.Util.randomAlphaNumeric;
+import static java.nio.file.StandardOpenOption.CREATE;
+import static java.nio.file.StandardOpenOption.CREATE_NEW;
+import static java.nio.file.StandardOpenOption.TRUNCATE_EXISTING;
+import static java.nio.file.StandardOpenOption.WRITE;
+import static java.util.Collections.emptyMap;
+
 import com.google.common.collect.Sets;
 import com.spotify.hype.gcs.ManifestLoader;
 import com.spotify.hype.gcs.RunManifest;
-
 import java.io.IOException;
 import java.net.URI;
 import java.nio.channels.Channels;
@@ -38,12 +46,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Properties;
 import java.util.Set;
-
-import static com.google.cloud.storage.contrib.nio.CloudStorageOptions.withMimeType;
-import static com.google.common.base.Charsets.UTF_8;
-import static com.spotify.hype.util.Util.randomAlphaNumeric;
-import static java.nio.file.StandardOpenOption.*;
-import static java.util.Collections.emptyMap;
 
 /**
  * Capsule caplet that downloads a Google Cloud Storage (gs://) run-manifest to a temp directory
