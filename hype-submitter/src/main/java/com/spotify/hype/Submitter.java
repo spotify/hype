@@ -20,14 +20,6 @@
 
 package com.spotify.hype;
 
-import static com.google.common.io.Files.getNameWithoutExtension;
-import static com.spotify.hype.ClasspathInspector.forLoader;
-import static com.spotify.hype.model.StagedContinuation.stagedContinuation;
-import static com.spotify.hype.runner.RunSpec.runSpec;
-import static com.spotify.hype.util.Util.randomAlphaNumeric;
-import static java.nio.file.Files.newInputStream;
-import static java.util.stream.Collectors.toList;
-
 import com.spotify.docker.client.DockerClient;
 import com.spotify.hype.gcs.RunManifest;
 import com.spotify.hype.gcs.RunManifestBuilder;
@@ -41,17 +33,29 @@ import com.spotify.hype.runner.VolumeRepository;
 import com.spotify.hype.util.Fn;
 import com.spotify.hype.util.SerializationUtil;
 import io.fabric8.kubernetes.client.KubernetesClient;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.Closeable;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+
+import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.io.Files.getNameWithoutExtension;
+import static com.spotify.hype.ClasspathInspector.forLoader;
+import static com.spotify.hype.model.StagedContinuation.stagedContinuation;
+import static com.spotify.hype.runner.RunSpec.runSpec;
+import static com.spotify.hype.util.Util.randomAlphaNumeric;
+import static java.nio.file.Files.newInputStream;
+import static java.util.stream.Collectors.toList;
 
 /**
  * todo: write explicit file list to gcs (allows for deduped and multi-use staging location)
@@ -60,45 +64,69 @@ public class Submitter implements Closeable {
 
   private static final Logger LOG = LoggerFactory.getLogger(Submitter.class);
 
-  private static final String GCS_STAGING_PREFIX = "spotify-hype-staging";
+  private static final String STAGING_PREFIX = "spotify-hype-staging";
 
   private final ClasspathInspector classpathInspector;
-  private final String bucketName;
+  private final URI stagingLocation;
 
   private final VolumeRepository volumeRepository;
   private final DockerRunner runner;
 
-  public static Submitter create(String bucketName) {
+  public static Submitter createLocal() throws IOException {
+    return Submitter.createLocal(DockerCluster.dockerCluster());
+  }
+
+  public static Submitter createLocal(final DockerCluster cluster) throws IOException {
+    Path stagingLocation = new File(System.getProperty("user.home")).toPath()
+        .resolve(".tmp")
+        .resolve(STAGING_PREFIX);
+    LOG.info("Local staging location is " + stagingLocation);
+    Files.createDirectories(stagingLocation);
     final ClasspathInspector classpathInspector = forLoader(Submitter.class.getClassLoader());
-    return create(classpathInspector, bucketName, null);
+    return new Submitter(classpathInspector, stagingLocation.toString(), cluster);
   }
 
-  public static Submitter create(String bucketName, ContainerEngineCluster cluster) {
+  public static Submitter create(String stagingLocation, ContainerEngineCluster cluster) {
     final ClasspathInspector classpathInspector = forLoader(Submitter.class.getClassLoader());
-    return create(classpathInspector, bucketName, cluster);
+    return create(classpathInspector, stagingLocation, cluster);
   }
 
-  public static Submitter create(
-      ClasspathInspector classpathInspector,
-      String bucketName, ContainerEngineCluster cluster) {
-    return new Submitter(classpathInspector, bucketName, cluster);
+  public static Submitter create(ClasspathInspector classpathInspector,
+                                 String stagingLocation,
+                                 ContainerEngineCluster cluster) {
+    return new Submitter(classpathInspector, stagingLocation, cluster);
   }
 
-  private Submitter(
-      ClasspathInspector classpathInspector, String bucketName,
-      ContainerEngineCluster cluster) {
-    this.bucketName = Objects.requireNonNull(bucketName);
+  private URI getStagingURI(String stagingLocation) {
+    checkNotNull(stagingLocation);
+    URI uri = URI.create(stagingLocation);
+    if (!uri.isAbsolute()) {
+      return URI.create("file://" + uri.toString());
+    } else {
+      return uri;
+    }
+  }
+
+  private Submitter(ClasspathInspector classpathInspector,
+                    String stagingLocation,
+                    ContainerEngineCluster cluster) {
+    this.stagingLocation = getStagingURI(stagingLocation);
     this.classpathInspector = Objects.requireNonNull(classpathInspector);
 
-    if (cluster != null) {
-      final KubernetesClient client = getClient(cluster);
-      this.volumeRepository = new VolumeRepository(client);
-      this.runner = DockerRunner.kubernetes(client, volumeRepository);
-    } else {
-      this.volumeRepository = null;
-      final DockerClient dockerClient = DockerRunner.createDockerClient();
-      this.runner = DockerRunner.local(dockerClient);
-    }
+    final KubernetesClient client = getClient(cluster);
+    this.volumeRepository = new VolumeRepository(client);
+    this.runner = DockerRunner.kubernetes(client, volumeRepository);
+  }
+
+  private Submitter(ClasspathInspector classpathInspector,
+                    String stagingLocation,
+                    DockerCluster cluster) {
+    this.stagingLocation = getStagingURI(stagingLocation);
+    this.classpathInspector = Objects.requireNonNull(classpathInspector);
+
+    this.volumeRepository = null;
+    final DockerClient dockerClient = DockerRunner.createDockerClient();
+    this.runner = DockerRunner.local(dockerClient, cluster);
   }
 
   public <T> T runOnCluster(Fn<T> fn, RunEnvironment environment) {
@@ -114,6 +142,7 @@ public class Submitter implements Closeable {
     // 3. download serialized return value
     if (returnUri.isPresent()) {
       final Path path = Paths.get(returnUri.get());
+      @SuppressWarnings("unchecked")
       final T returnValue;
       try (InputStream inputStream = newInputStream(path)) {
         // 4. deserialize and return
@@ -134,10 +163,7 @@ public class Submitter implements Closeable {
   public StagedContinuation stageContinuation(Fn<?> fn) {
     final List<Path> files = classpathInspector.classpathJars();
     final Path continuationPath = SerializationUtil.serializeContinuation(fn);
-    final URI stagingLocation = Paths.get(URI.create("gs://" + bucketName))
-        .resolve(GCS_STAGING_PREFIX)
-        .toUri();
-    final Path manifestPath = Paths.get(stagingLocation)
+    final Path manifestPath = Paths.get(this.stagingLocation)
         .resolve("manifest-" + randomAlphaNumeric(8) + ".txt");
     final String continuationFileName = getNameWithoutExtension(continuationPath
         .toAbsolutePath().toString());
@@ -151,7 +177,7 @@ public class Submitter implements Closeable {
 
     final List<StagedPackage> stagedPackages = StagingUtil.stageClasspathElements(
         fileStrings,
-        stagingLocation.toString());
+        this.stagingLocation.toString());
 
     final Optional<StagedPackage> stagedContinuationPackage = stagedPackages.stream()
         .filter(p -> p.getName().contains(continuationFileName))

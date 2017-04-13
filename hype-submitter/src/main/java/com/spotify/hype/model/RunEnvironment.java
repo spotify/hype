@@ -27,12 +27,13 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 @AutoMatter
 public interface RunEnvironment {
 
   EnvironmentBase base();
-  Secret secretMount(); // todo: make secret optional
+  List<Secret> secretMounts();
   List<VolumeMount> volumeMounts();
   Map<String, String> resourceRequests();
 
@@ -49,10 +50,16 @@ public interface RunEnvironment {
     Path yamlPath();
   }
 
+  static RunEnvironment environment(String image) {
+    return new RunEnvironmentBuilder()
+        .base(new SimpleBaseBuilder().image(image).build())
+        .build();
+  }
+
   static RunEnvironment environment(String image, Secret secret) {
     return new RunEnvironmentBuilder()
         .base(new SimpleBaseBuilder().image(image).build())
-        .secretMount(secret)
+        .addSecretMount(secret)
         .build();
   }
 
@@ -69,7 +76,13 @@ public interface RunEnvironment {
   static RunEnvironment fromYaml(Path path, Secret secret) {
     return new RunEnvironmentBuilder()
         .base(new YamlBaseBuilder().yamlPath(path).build())
-        .secretMount(secret)
+        .addSecretMount(secret)
+        .build();
+  }
+
+  default RunEnvironment withSecret(Secret secret) {
+    return RunEnvironmentBuilder.from(this)
+        .addSecretMount(secret)
         .build();
   }
 

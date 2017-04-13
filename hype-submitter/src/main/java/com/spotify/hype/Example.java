@@ -20,19 +20,20 @@
 
 package com.spotify.hype;
 
+import com.spotify.hype.model.RunEnvironment;
+import com.spotify.hype.model.VolumeRequest;
+import com.spotify.hype.util.Fn;
+
+import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+
 import static com.spotify.hype.ContainerEngineCluster.containerEngineCluster;
 import static com.spotify.hype.model.ResourceRequest.CPU;
 import static com.spotify.hype.model.ResourceRequest.MEMORY;
 import static com.spotify.hype.model.RunEnvironment.environment;
 import static com.spotify.hype.model.Secret.secret;
 import static com.spotify.hype.model.VolumeRequest.volumeRequest;
-
-import com.spotify.hype.model.RunEnvironment;
-import com.spotify.hype.model.VolumeRequest;
-import com.spotify.hype.util.Fn;
-import java.util.List;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 public class Example {
 
