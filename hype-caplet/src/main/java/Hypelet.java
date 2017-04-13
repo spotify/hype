@@ -136,9 +136,12 @@ public class Hypelet extends Capsule {
             final byte[] terminationMessage = uploadPath.toUri().toString().getBytes(UTF_8);
             try {
               Files.write(terminationLog, terminationMessage, CREATE, WRITE, TRUNCATE_EXISTING);
+              System.out.println("Wrote URI to the termination log `" + terminationLog + "`");
             } catch (IOException e) {
               throw new RuntimeException(e);
             }
+          } else {
+            System.out.println("`" + TERMINATION_LOG + "` does not exist");
           }
         } catch (IOException e) {
           throw new RuntimeException(e);
