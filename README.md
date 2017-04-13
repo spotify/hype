@@ -1,6 +1,10 @@
 hype
 ====
 
+[![Build Status](https://img.shields.io/circleci/project/github/spotify/hype/master.svg)](https://circleci.com/gh/spotify/hype)
+[![codecov.io](https://codecov.io/github/spotify/hype/coverage.svg?branch=master)](https://codecov.io/github/spotify/hype?branch=master)
+[![GitHub license](https://img.shields.io/github/license/spotify/hype.svg)](./LICENSE)
+
 A toolkit for seamlessly executing arbitrary JVM closures in [Docker] containers on [Kubernetes].
 
 ---
