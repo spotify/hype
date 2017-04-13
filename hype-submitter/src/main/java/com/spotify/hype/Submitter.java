@@ -20,6 +20,16 @@
 
 package com.spotify.hype;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Preconditions.checkState;
+import static com.google.common.io.Files.getNameWithoutExtension;
+import static com.spotify.hype.ClasspathInspector.forLoader;
+import static com.spotify.hype.model.StagedContinuation.stagedContinuation;
+import static com.spotify.hype.runner.RunSpec.runSpec;
+import static com.spotify.hype.util.Util.randomAlphaNumeric;
+import static java.nio.file.Files.newInputStream;
+import static java.util.stream.Collectors.toList;
+
 import com.spotify.docker.client.DockerClient;
 import com.spotify.hype.gcs.RunManifest;
 import com.spotify.hype.gcs.RunManifestBuilder;
@@ -33,9 +43,6 @@ import com.spotify.hype.runner.VolumeRepository;
 import com.spotify.hype.util.Fn;
 import com.spotify.hype.util.SerializationUtil;
 import io.fabric8.kubernetes.client.KubernetesClient;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
@@ -47,16 +54,8 @@ import java.nio.file.Paths;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-
-import static com.google.common.base.Preconditions.checkNotNull;
-import static com.google.common.base.Preconditions.checkState;
-import static com.google.common.io.Files.getNameWithoutExtension;
-import static com.spotify.hype.ClasspathInspector.forLoader;
-import static com.spotify.hype.model.StagedContinuation.stagedContinuation;
-import static com.spotify.hype.runner.RunSpec.runSpec;
-import static com.spotify.hype.util.Util.randomAlphaNumeric;
-import static java.nio.file.Files.newInputStream;
-import static java.util.stream.Collectors.toList;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * todo: write explicit file list to gcs (allows for deduped and multi-use staging location)

@@ -20,6 +20,8 @@
 
 package com.spotify.hype.runner;
 
+import static com.google.common.collect.ImmutableList.of;
+
 import com.spotify.docker.client.DockerClient;
 import com.spotify.docker.client.exceptions.DockerException;
 import com.spotify.docker.client.messages.ContainerConfig;
@@ -28,9 +30,6 @@ import com.spotify.docker.client.messages.ContainerInfo;
 import com.spotify.docker.client.messages.HostConfig;
 import com.spotify.hype.model.RunEnvironment;
 import com.spotify.hype.model.StagedContinuation;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
@@ -39,8 +38,8 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
-
-import static com.google.common.collect.ImmutableList.of;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class LocalDockerRunner implements DockerRunner {
 

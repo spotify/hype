@@ -20,6 +20,12 @@
 
 package com.spotify.hype.runner;
 
+import static com.spotify.hype.util.Util.randomAlphaNumeric;
+import static java.util.Collections.singletonList;
+import static java.util.function.Function.identity;
+import static java.util.stream.Collectors.toList;
+import static java.util.stream.Collectors.toMap;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.google.common.annotations.VisibleForTesting;
@@ -52,7 +58,6 @@ import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.fabric8.kubernetes.client.dsl.PodResource;
 import io.norberg.automatter.AutoMatter;
-
 import java.io.IOException;
 import java.net.URI;
 import java.util.List;
@@ -60,12 +65,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
-
-import static com.spotify.hype.util.Util.randomAlphaNumeric;
-import static java.util.Collections.singletonList;
-import static java.util.function.Function.identity;
-import static java.util.stream.Collectors.toList;
-import static java.util.stream.Collectors.toMap;
 
 /**
  * A {@link DockerRunner} implementation that submits container executions to a Kubernetes cluster.
