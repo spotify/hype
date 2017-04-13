@@ -41,7 +41,7 @@ val env = RunEnvironment.environment(
     "gcr.io/gcp-project-id/env-image", // the env image we created earlier
     Secret.secret("gcp-key", "/etc/gcloud")) // a pre-created k8s secret volume named "gcp-key"
 
-val submitter = Submitter.create("my-staging-bucket", cluster)
+val submitter = Submitter.create("gs://my-staging-bucket", cluster)
 submitter.runOnCluster(fn, env)
 ```
 

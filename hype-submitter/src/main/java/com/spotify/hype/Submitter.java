@@ -49,6 +49,7 @@ import java.util.Objects;
 import java.util.Optional;
 
 import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.io.Files.getNameWithoutExtension;
 import static com.spotify.hype.ClasspathInspector.forLoader;
 import static com.spotify.hype.model.StagedContinuation.stagedContinuation;
@@ -111,6 +112,7 @@ public class Submitter implements Closeable {
                     String stagingLocation,
                     ContainerEngineCluster cluster) {
     this.stagingLocation = getStagingURI(stagingLocation);
+    checkState(Objects.equals(this.stagingLocation.getScheme(), "gs"));
     this.classpathInspector = Objects.requireNonNull(classpathInspector);
 
     final KubernetesClient client = getClient(cluster);
@@ -122,6 +124,9 @@ public class Submitter implements Closeable {
                     String stagingLocation,
                     DockerCluster cluster) {
     this.stagingLocation = getStagingURI(stagingLocation);
+    if (!Objects.equals(this.stagingLocation.getScheme(), "file")) {
+      LOG.warn("You are using non local staging location for local cluster");
+    }
     this.classpathInspector = Objects.requireNonNull(classpathInspector);
 
     this.volumeRepository = null;
