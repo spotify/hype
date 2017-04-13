@@ -41,6 +41,12 @@
     <dependency>
       <groupId>com.google.apis</groupId>
       <artifactId>google-api-services-container</artifactId>
+      <exclusions>
+        <exclusion>
+          <groupId>com.google.guava</groupId>
+          <artifactId>guava-jdk5</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
     <dependency>
       <groupId>com.spotify</groupId>
