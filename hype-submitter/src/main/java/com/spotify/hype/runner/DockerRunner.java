@@ -29,6 +29,7 @@ import com.spotify.docker.client.DefaultDockerClient;
 import com.spotify.docker.client.DockerClient;
 import com.spotify.docker.client.exceptions.DockerCertificateException;
 import com.spotify.hype.ContainerEngineCluster;
+import com.spotify.hype.DockerCluster;
 import io.fabric8.kubernetes.client.ConfigBuilder;
 import io.fabric8.kubernetes.client.DefaultKubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClient;
@@ -60,8 +61,13 @@ public interface DockerRunner {
     return new KubernetesDockerRunner(kubernetesClient, volumeRepository);
   }
 
-  static DockerRunner local(DockerClient dockerClient) {
-    return new LocalDockerRunner(dockerClient);
+  static DockerRunner local(DockerClient dockerClient,
+                            DockerCluster dockerCluster) {
+    return new LocalDockerRunner(
+        dockerClient,
+        dockerCluster.keepConatainer(),
+        dockerCluster.keepTerminationLog(),
+        dockerCluster.keepVolumes());
   }
 
   static KubernetesClient createKubernetesClient(ContainerEngineCluster gkeCluster) {

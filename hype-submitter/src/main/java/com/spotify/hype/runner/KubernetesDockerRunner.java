@@ -20,12 +20,6 @@
 
 package com.spotify.hype.runner;
 
-import static com.spotify.hype.util.Util.randomAlphaNumeric;
-import static java.util.Collections.singletonList;
-import static java.util.function.Function.identity;
-import static java.util.stream.Collectors.toList;
-import static java.util.stream.Collectors.toMap;
-
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.google.common.annotations.VisibleForTesting;
@@ -58,6 +52,7 @@ import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.fabric8.kubernetes.client.dsl.PodResource;
 import io.norberg.automatter.AutoMatter;
+
 import java.io.IOException;
 import java.net.URI;
 import java.util.List;
@@ -65,6 +60,12 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
+
+import static com.spotify.hype.util.Util.randomAlphaNumeric;
+import static java.util.Collections.singletonList;
+import static java.util.function.Function.identity;
+import static java.util.stream.Collectors.toList;
+import static java.util.stream.Collectors.toMap;
 
 /**
  * A {@link DockerRunner} implementation that submits container executions to a Kubernetes cluster.
@@ -153,7 +154,7 @@ class KubernetesDockerRunner implements DockerRunner {
   Pod createPod(RunSpec runSpec) {
     final String podName = HYPE_RUN + "-" + randomAlphaNumeric(8);
     final RunEnvironment env = runSpec.runEnvironment();
-    final Secret secret = env.secretMount();
+    final List<Secret> secrets = env.secretMounts();
     final StagedContinuation stagedContinuation = runSpec.stagedContinuation();
     final List<VolumeMountInfo> volumeMountInfos = volumeMountInfos(env.volumeMounts());
 
@@ -169,13 +170,14 @@ class KubernetesDockerRunner implements DockerRunner {
     final PodSpec spec = basePod.getSpec();
 
     // add volumes
-    spec.getVolumes()
-        .add(new VolumeBuilder()
-            .withName(secret.name())
-            .withNewSecret()
-                .withSecretName(secret.name())
-            .endSecret()
-            .build());
+    secrets.forEach(s ->
+        spec.getVolumes()
+            .add(new VolumeBuilder()
+                .withName(s.name())
+                .withNewSecret()
+                .withSecretName(s.name())
+                .endSecret()
+                .build()));
     volumeMountInfos.stream()
         .map(VolumeMountInfo::volume)
         .forEach(spec.getVolumes()::add);
@@ -183,12 +185,13 @@ class KubernetesDockerRunner implements DockerRunner {
     final Container container = findHypeRunContainer(basePod);
 
     // add volume mounts
-    container.getVolumeMounts()
-        .add(new VolumeMountBuilder()
-            .withName(secret.name())
-            .withMountPath(secret.mountPath())
-            .withReadOnly(true)
-            .build());
+    secrets.forEach(s ->
+        container.getVolumeMounts()
+            .add(new VolumeMountBuilder()
+                .withName(s.name())
+                .withMountPath(s.mountPath())
+                .withReadOnly(true)
+                .build()));
     volumeMountInfos.stream()
         .map(VolumeMountInfo::volumeMount)
         .forEach(container.getVolumeMounts()::add);
