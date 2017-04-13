@@ -1,4 +1,4 @@
-package com.spotify.hype
+package com.spotify.hype.examples
 
 trait HypeModule[T] extends Serializable {
 

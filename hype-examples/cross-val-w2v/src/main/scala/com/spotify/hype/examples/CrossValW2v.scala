@@ -4,13 +4,13 @@ import java.net.URI
 import java.nio.file.Paths
 
 import com.spotify.hype.ContainerEngineCluster.containerEngineCluster
-import com.spotify.hype.examples.split.{GcsToLocal, LocalSplit}
+import com.spotify.hype.examples.split.LocalSplit
 import com.spotify.hype.examples.word2vec.{W2vParams, Word2vec}
 import com.spotify.hype.model.ResourceRequest.CPU
 import com.spotify.hype.model.Secret.secret
 import com.spotify.hype.model.{RunEnvironment, VolumeRequest}
 import com.spotify.hype.util.Fn
-import com.spotify.hype.{ContainerEngineCluster, HypeModule, Submitter}
+import com.spotify.hype.{ContainerEngineCluster, Submitter}
 import org.slf4j.LoggerFactory
 
 
@@ -19,7 +19,7 @@ object CrossValW2v {
   private val log = LoggerFactory.getLogger(CrossValW2v.getClass)
 
   // Mount disk
-  val ssd: VolumeRequest = VolumeRequest.volumeRequest("fast", "15Gi")
+  val ssd: VolumeRequest = VolumeRequest.volumeRequest("fast", "20Gi")
   val mount: String = "/usr/share/volume"
 
   def run(submitter: Submitter): Unit = {
@@ -30,7 +30,7 @@ object CrossValW2v {
       .resolve(Paths.get(gcsInputPath).getFileName)
       .toString
 
-    val gcsToLocal = GcsToLocal(gcsInputPath, localTextFile)
+    val gcsToLocal = GSUtilCp(gcsInputPath, localTextFile)
     submitter.runOnCluster(gcsToLocal.getFn, getEnv(gcsToLocal.getImage)
       .withMount(ssd.mountReadWrite(mount)))
 

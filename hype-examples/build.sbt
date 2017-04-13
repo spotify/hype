@@ -18,24 +18,32 @@ lazy val root: Project = Project(
   "hype-examples",
   file(".")
 ).aggregate(
+  commons,
   localsplit,
   word2vec,
   crossValW2v
 )
 
-lazy val localsplit: Project = project.in(file("local-split")).settings(
-  commonSettings,
-  libraryDependencies ++= commonLibraryDependencies
-)
-
-lazy val word2vec: Project = project.in(file("word2vec")).settings(
+lazy val commons : Project = project.in(file("commons")).settings(
   commonSettings,
   libraryDependencies ++= commonLibraryDependencies ++ Seq(
     "org.scalanlp" %% "breeze" % "0.13",
     "org.scalatest" %% "scalatest" % "3.0.1"
   )
+)
+
+lazy val localsplit: Project = project.in(file("local-split")).settings(
+  commonSettings,
+  libraryDependencies ++= commonLibraryDependencies
 ).dependsOn(
-  localsplit // FIXME: just for the HypeModule
+  commons
+)
+
+lazy val word2vec: Project = project.in(file("word2vec")).settings(
+  commonSettings,
+  libraryDependencies ++= commonLibraryDependencies
+).dependsOn(
+  commons
 )
 
 lazy val crossValW2v: Project = project.in(file("cross-val-w2v")).settings(

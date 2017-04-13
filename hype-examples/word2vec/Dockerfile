@@ -1,11 +1,5 @@
-FROM openjdk:8-jre
+FROM us.gcr.io/datawhere-test/hype-examples-base:4
 MAINTAINER Robert Gruener <robertg@spotify.com>
-
-ENV GOOGLE_APPLICATION_CREDENTIALS /etc/gcloud/key.json
-
-# Install hype-run command
-RUN /bin/sh -c "$(curl -fsSL https://goo.gl/kSogpF)"
-ENTRYPOINT ["hype-run"]
 
 # Install gcc
 RUN apt-get update && apt-get install -y gcc && apt-get install -y make

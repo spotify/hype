@@ -3,8 +3,9 @@ package com.spotify.hype.examples.word2vec
 import java.net.URI
 import java.nio.file.{Files, Paths, StandardCopyOption}
 
-import com.spotify.hype.HypeModule
 import org.slf4j.LoggerFactory
+import com.spotify.hype.examples.evaluations.MissingWordAccuracy
+import com.spotify.hype.examples.{GSUtilCp, HypeModule}
 
 import scala.sys.process._
 
@@ -52,10 +53,10 @@ case class Word2vec(p: W2vParams) extends HypeModule[String] {
 
     // Download training set if non local
     val trainPath = Paths.get(URI.create(p.train))
-    val train = if (trainPath.toUri.getScheme != "file") {
+    val train = if (trainPath.toUri.getScheme == "gs") {
       val localInput = tempDirectory.resolve(trainPath.getFileName)
       log.info(s"Copying $trainPath to $localInput")
-      Files.copy(trainPath, localInput)
+      GSUtilCp(trainPath.toString, localInput.toString).getFn
       localInput
     } else {
       trainPath
@@ -75,9 +76,9 @@ case class Word2vec(p: W2vParams) extends HypeModule[String] {
     val retCode = w2vCmd !
 
     // Copy output if necessary
-    if (outputPath.toUri.getScheme != "file") {
+    if (outputPath.toUri.getScheme == "gs") {
       log.info(s"Copying $output to $outputPath")
-      Files.copy(output, outputPath, StandardCopyOption.REPLACE_EXISTING)
+      GSUtilCp(output.toString, outputPath.toString).getFn
     }
 
     // Evaluate model
@@ -86,7 +87,7 @@ case class Word2vec(p: W2vParams) extends HypeModule[String] {
     MissingWordAccuracy.eval(output.toString, cvPath.toString)
   }
 
-  override def getImage: String = "us.gcr.io/datawhere-test/hype-word2vec:7"
+  override def getImage: String = "us.gcr.io/datawhere-test/hype-word2vec:9"
 
   private implicit def toInT(b: Boolean): Int = if (b) 1 else 0
 }
