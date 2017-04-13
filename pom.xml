@@ -19,6 +19,7 @@
   <modules>
     <module>hype-caplet</module>
     <module>hype-common</module>
+    <module>hype-docker</module>
     <module>hype-gcs</module>
     <module>hype-run</module>
     <module>hype-submitter</module>

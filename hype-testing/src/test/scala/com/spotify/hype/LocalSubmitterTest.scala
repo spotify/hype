@@ -24,7 +24,8 @@ import scala.reflect.io.File
 
 class LocalSubmitterTest extends FlatSpec with Matchers {
 
-  private def testEnv = RunEnvironment.environment("spotify-hype-testing")
+  private def testEnv = RunEnvironment
+    .environment(s"spotify-hype-testing:${VersionUtil.getVersion}")
 
   // Once hype has scala module this should be obsolete
   implicit def funToFn[T](fn: () => T): Fn[T] = {

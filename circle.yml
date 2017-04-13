@@ -10,3 +10,7 @@ dependencies:
   # compile, since dependency:resolve fails for multi-module builds
   override:
     - mvn -version
+
+test:
+  override:
+    -  mvn test -Ddockerfile.build.noCache=true

@@ -23,7 +23,7 @@ ENTRYPOINT ["hype-run"]
 It is important to have exactly this `ENTRYPOINT` as the Kubernetes Pods will expect to run the
 `hype-run` command.
 
-See example [`Dockerfile`](docker/Dockerfile)
+See example [`Dockerfile`](hype-docker/Dockerfile)
 
 ## Submit
 
