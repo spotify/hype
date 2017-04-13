@@ -46,6 +46,7 @@ public class LocalDockerRunner implements DockerRunner {
   private static final Logger LOG = LoggerFactory.getLogger(LocalDockerRunner.class);
   private static final String GCLOUD_CREDENTIALS = "GOOGLE_APPLICATION_CREDENTIALS";
   private static final String STAGING_VOLUME = "/staging";
+  private static final String GCLOUD_CREDENTIALS_MOUNT = "/etc/gcloud/key.json";
   private static final int POLL_CONTAINERS_INTERVAL_SECONDS = 5;
 
   private final DockerClient client;
@@ -91,16 +92,14 @@ public class LocalDockerRunner implements DockerRunner {
       // Use GOOGLE_APPLICATION_CREDENTIALS environment variable to mount into
       final String credentials = System.getenv(GCLOUD_CREDENTIALS);
       if (credentials == null) {
-        throw new RuntimeException(
-            String.format("Environment variable %s must be set to use local runner",
-                          GCLOUD_CREDENTIALS)
-        );
+        LOG.warn(GCLOUD_CREDENTIALS + " not set, won't mount gcloud credentials");
+      } else {
+        LOG.info("Mounting `" + credentials + "` as `" + GCLOUD_CREDENTIALS_MOUNT + "`");
+        hostConfig.appendBinds(HostConfig.Bind.from(credentials)
+            .to(GCLOUD_CREDENTIALS_MOUNT)
+            .readOnly(true)
+            .build());
       }
-
-      hostConfig.appendBinds(HostConfig.Bind.from(credentials)
-                               .to("/etc/gcloud/key.json")
-                               .readOnly(true)
-                               .build());
 
       // Mount temporary file to act as the termination log
       // Use user home because Docker Engine daemon has only limited access to on macOS or
