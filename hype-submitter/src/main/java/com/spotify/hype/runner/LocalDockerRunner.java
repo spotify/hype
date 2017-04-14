@@ -88,7 +88,19 @@ public class LocalDockerRunner implements DockerRunner {
 
     final ContainerCreation creation;
     try {
-      client.pull(imageWithTag, System.out::println); // blocking
+      // check if it's needed to pull the image
+      // TODO: figure out authentication with private repos
+      if(client.listImages().stream()
+          .noneMatch(i -> i.repoTags().stream()
+              .anyMatch(t -> Objects.equals(t, imageWithTag)))){
+        LOG.info("Pulling image " + imageWithTag);
+        try {
+          client.pull(imageWithTag, System.out::println); // blocking
+        } catch (DockerException e) {
+          LOG.error("Could not pull the image " + imageWithTag + ". Try to pull it yourself.");
+          throw e;
+        }
+      }
       final HostConfig.Builder hostConfig = HostConfig.builder();
       // Use GOOGLE_APPLICATION_CREDENTIALS environment variable to mount into
       final String credentials = System.getenv(GCLOUD_CREDENTIALS);
