@@ -48,10 +48,10 @@ def extractEnv: Res = {
 }
 
 // Use a Google Cloud Container Engine managed cluster
-val cluster = containerEngineCluster(
+val cluster = ContainerEngineCluster(
     "gcp-project-id", "gce-zone-id", "gke-cluster-id") // modify these
 
-val env = environment("gcr.io/gcp-project-id/env-image") // the env image we created earlier
+val env = Environment("gcr.io/gcp-project-id/env-image") // the env image we created earlier
     .withSecret("gcp-key", "/etc/gcloud") // a pre-created k8s secret volume named "gcp-key"
 
 withSubmitter(cluster, "gs://my-staging-bucket") { submitter =>
@@ -126,7 +126,7 @@ import com.spotify.hype._
 import scala.sys.process._
 
 // Create a 10Gi volume from the 'gce-ssd-pd' storage class
-val ssd10Gi = volumeRequest("gce-ssd-pd", "10Gi")
+val ssd10Gi = VolumeRequest("gce-ssd-pd", "10Gi")
 val mount = "/usr/share/volume" 
 
 def write: Int = {
@@ -139,13 +139,20 @@ def read: String = {
   s"cat $mount/word" !!
 }
 
-val readWriteEnv = environment.withMount(ssd10Gi.mountReadWrite(mount))
-submitter.runOnCluster(write, readWriteEnv)
+val cluster = ContainerEngineCluster(
+    "gcp-project-id", "gce-zone-id", "gke-cluster-id") // modify these
 
-// Run 10 parallel functions that have read only access to the volume
-val readOnlyEnv = environment.withMount(ssd10Gi.mountReadOnly(mount))
-val results = for (_ <- Range(0, 10).par)
-    yield submitter.runOnCluster(read, readOnlyEnv)
+val env = Environment("gcr.io/gcp-project-id/env-image") // the env image we created earlier
+
+withSubmitter(cluster, "gs://my-staging-bucket") { submitter =>
+  val readWriteEnv = env.withMount(ssd10Gi.mountReadWrite(mount))
+  submitter.runOnCluster(write, readWriteEnv)
+
+  // Run 10 parallel functions that have read only access to the volume
+  val readOnlyEnv = env.withMount(ssd10Gi.mountReadOnly(mount))
+  val results = for (_ <- Range(0, 10).par)
+      yield submitter.runOnCluster(read, readOnlyEnv)
+}
 ```
 
 The submissions from the parallel stream will each run concurrently in a separate pod and have
@@ -194,7 +201,7 @@ set in the YAML file.
 Then simply load your `RunEnvironment` through
 
 ```scala
-val env = RunEnvironment.fromYaml("/pod.yaml")
+val env = EnvironmentFromYaml("/pod.yaml")
 ```
 
 ---
