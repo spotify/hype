@@ -3,6 +3,7 @@ hype
 
 [![Build Status](https://img.shields.io/circleci/project/github/spotify/hype/master.svg)](https://circleci.com/gh/spotify/hype)
 [![codecov.io](https://codecov.io/github/spotify/hype/coverage.svg?branch=master)](https://codecov.io/github/spotify/hype?branch=master)
+[![Maven Central](https://img.shields.io/maven-central/v/com.spotify/hype-root.svg)](https://search.maven.org/#search%7Cga%7C1%7Cg%3A%22com.spotify%22%20hype*)
 [![GitHub license](https://img.shields.io/github/license/spotify/hype.svg)](./LICENSE)
 
 A toolkit for seamlessly executing arbitrary JVM closures in [Docker] containers on [Kubernetes].
