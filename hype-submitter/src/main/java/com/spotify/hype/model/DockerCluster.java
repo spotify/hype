@@ -18,21 +18,21 @@
  * -/-/-
  */
 
-package com.spotify.hype;
+package com.spotify.hype.model;
 
 import io.norberg.automatter.AutoMatter;
 
 @AutoMatter
 public interface DockerCluster {
-  boolean keepConatainer();
+  boolean keepContainer();
   boolean keepTerminationLog();
   boolean keepVolumes();
 
-  static DockerCluster dockerCluster(final boolean keepConatainer,
+  static DockerCluster dockerCluster(final boolean keepContainer,
                                      final boolean keepTerminationLog,
                                      final boolean keepVolumes) {
     return new DockerClusterBuilder()
-        .keepConatainer(keepConatainer)
+        .keepContainer(keepContainer)
         .keepTerminationLog(keepTerminationLog)
         .keepVolumes(keepVolumes)
         .build();
@@ -40,7 +40,7 @@ public interface DockerCluster {
 
   static DockerCluster dockerCluster() {
     return new DockerClusterBuilder()
-        .keepConatainer(false)
+        .keepContainer(false)
         .keepTerminationLog(false)
         .keepVolumes(false)
         .build();

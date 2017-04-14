@@ -55,27 +55,25 @@ public interface RunEnvironment {
         .build();
   }
 
-  static RunEnvironment environment(String image, Secret secret) {
-    return new RunEnvironmentBuilder()
-        .base(new SimpleBaseBuilder().image(image).build())
-        .addSecretMount(secret)
-        .build();
-  }
-
-  static RunEnvironment fromYaml(String resourcePath, Secret secret) {
+  static RunEnvironment fromYaml(String resourcePath) {
     final URI resourceUri;
     try {
       resourceUri = RunEnvironment.class.getResource(resourcePath).toURI();
     } catch (URISyntaxException e) {
       throw new RuntimeException(e);
     }
-    return fromYaml(Paths.get(resourceUri), secret);
+    return fromYaml(Paths.get(resourceUri));
   }
 
-  static RunEnvironment fromYaml(Path path, Secret secret) {
+  static RunEnvironment fromYaml(Path path) {
     return new RunEnvironmentBuilder()
         .base(new YamlBaseBuilder().yamlPath(path).build())
-        .addSecretMount(secret)
+        .build();
+  }
+
+  default RunEnvironment withSecret(String name, String mountPath) {
+    return RunEnvironmentBuilder.from(this)
+        .addSecretMount(Secret.secret(name, mountPath))
         .build();
   }
 

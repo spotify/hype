@@ -72,7 +72,7 @@ import java.util.concurrent.TimeUnit;
  * todo: retry docker operations
  * todo: clean up all pods on exit?
  */
-class KubernetesDockerRunner implements DockerRunner {
+public class KubernetesDockerRunner implements DockerRunner {
 
   static final String HYPE_RUN = "hype-run";
   static final String EXECUTION_ID = "HYPE_EXECUTION_ID";

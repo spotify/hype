@@ -268,9 +268,7 @@ public class StagingUtil {
       }
     }
 
-    LOG.info("Uploading PipelineOptions.filesToStage complete: {} files newly uploaded, "
-             + "{} files cached",
-        numUploaded, numCached);
+    LOG.info("Uploading complete: {} files newly uploaded, {} files cached", numUploaded, numCached);
 
     return packages;
   }

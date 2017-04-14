@@ -20,13 +20,13 @@
 
 package com.spotify.hype;
 
-import static com.spotify.hype.ContainerEngineCluster.containerEngineCluster;
+import static com.spotify.hype.model.ContainerEngineCluster.containerEngineCluster;
 import static com.spotify.hype.model.ResourceRequest.CPU;
 import static com.spotify.hype.model.ResourceRequest.MEMORY;
 import static com.spotify.hype.model.RunEnvironment.environment;
-import static com.spotify.hype.model.Secret.secret;
 import static com.spotify.hype.model.VolumeRequest.volumeRequest;
 
+import com.spotify.hype.model.ContainerEngineCluster;
 import com.spotify.hype.model.RunEnvironment;
 import com.spotify.hype.model.VolumeRequest;
 import com.spotify.hype.util.Fn;
@@ -49,10 +49,8 @@ public class Example {
           .collect(Collectors.toList());
     };
 
-    final RunEnvironment environment =
-        environment(
-            "us.gcr.io/datawhere-test/hype-runner:5",
-            secret("gcp-key", "/etc/gcloud"))
+    final RunEnvironment environment = environment("us.gcr.io/datawhere-test/hype-runner:5")
+        .withSecret("gcp-key", "/etc/gcloud")
         .withRequest(CPU.of("200m"))
         .withRequest(MEMORY.of("256Mi"));
 

@@ -72,7 +72,7 @@ public class KubernetesDockerRunnerTest {
 
   @Test
   public void setsImage() throws Exception {
-    RunEnvironment env = environment("busybox:1", SECRET);
+    RunEnvironment env = environment("busybox:1");
     Pod pod = createPod(env);
 
     Container container = findHypeRunContainer(pod);
@@ -81,7 +81,7 @@ public class KubernetesDockerRunnerTest {
 
   @Test
   public void setsManifestAsArgument() throws Exception {
-    RunEnvironment env = environment("busybox:1", SECRET);
+    RunEnvironment env = environment("busybox:1");
     Pod pod = createPod(env);
 
     Container container = findHypeRunContainer(pod);
@@ -90,7 +90,7 @@ public class KubernetesDockerRunnerTest {
 
   @Test
   public void setsManifestAsArgumentWhenLoadedFromYaml() throws Exception {
-    RunEnvironment env = fromYaml("/minimal-pod.yaml", SECRET);
+    RunEnvironment env = fromYaml("/minimal-pod.yaml");
     Pod pod = createPod(env);
 
     Container container = findHypeRunContainer(pod);
@@ -99,7 +99,7 @@ public class KubernetesDockerRunnerTest {
 
   @Test
   public void setsHypeExecIdAsEnvVar() throws Exception {
-    RunEnvironment env = environment("busybox:1", SECRET);
+    RunEnvironment env = environment("busybox:1");
     Pod pod = createPod(env);
     String name = pod.getMetadata().getName();
 
@@ -109,7 +109,7 @@ public class KubernetesDockerRunnerTest {
 
   @Test
   public void setsHypeExecIdAsEnvVarWhenLoadedFromYaml() throws Exception {
-    RunEnvironment env = fromYaml("/minimal-pod.yaml", SECRET);
+    RunEnvironment env = fromYaml("/minimal-pod.yaml");
     Pod pod = createPod(env);
     String name = pod.getMetadata().getName();
 
@@ -119,7 +119,7 @@ public class KubernetesDockerRunnerTest {
 
   @Test
   public void setsResourceRequests() throws Exception {
-    RunEnvironment env = environment("busybox:1", SECRET)
+    RunEnvironment env = environment("busybox:1")
         .withRequest(CPU.of("250m"))
         .withRequest(MEMORY.of("2Gi"))
         .withRequest("gpu", "2");
@@ -134,7 +134,7 @@ public class KubernetesDockerRunnerTest {
 
   @Test
   public void addsResourceRequestsWhenLoadedFromYaml() throws Exception {
-    RunEnvironment env = fromYaml("/minimal-pod.yaml", SECRET)
+    RunEnvironment env = fromYaml("/minimal-pod.yaml")
         .withRequest(MEMORY.of("2Gi"))
         .withRequest("gpu", "2");
     Pod pod = createPod(env);
@@ -148,7 +148,7 @@ public class KubernetesDockerRunnerTest {
 
   @Test
   public void overridesResourceRequestsWhenLoadedFromYaml() throws Exception {
-    RunEnvironment env = fromYaml("/minimal-pod.yaml", SECRET)
+    RunEnvironment env = fromYaml("/minimal-pod.yaml")
         .withRequest(CPU.of("250m"));
     Pod pod = createPod(env);
 
@@ -159,7 +159,8 @@ public class KubernetesDockerRunnerTest {
 
   @Test
   public void mountsSecretVolume() throws Exception {
-    RunEnvironment env = environment("busybox:1", SECRET);
+    RunEnvironment env = environment("busybox:1")
+        .withSecret(SECRET);
     Pod pod = createPod(env);
 
     final PodSpec spec = pod.getSpec();
@@ -180,7 +181,8 @@ public class KubernetesDockerRunnerTest {
 
   @Test
   public void mountsSecretVolumeWhenLoadedFromYaml() throws Exception {
-    RunEnvironment env = fromYaml("/minimal-pod.yaml", SECRET);
+    RunEnvironment env = fromYaml("/minimal-pod.yaml")
+        .withSecret(SECRET);
     Pod pod = createPod(env);
 
     final PodSpec spec = pod.getSpec();
@@ -201,7 +203,7 @@ public class KubernetesDockerRunnerTest {
 
   @Test
   public void loadsFromYaml() throws Exception {
-    RunEnvironment env = fromYaml("/minimal-pod.yaml", SECRET);
+    RunEnvironment env = fromYaml("/minimal-pod.yaml");
     Pod pod = createPod(env);
 
     assertThat(pod.getSpec().getRestartPolicy(), is("Never"));

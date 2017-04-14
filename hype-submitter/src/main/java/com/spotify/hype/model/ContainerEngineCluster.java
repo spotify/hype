@@ -18,7 +18,7 @@
  * -/-/-
  */
 
-package com.spotify.hype;
+package com.spotify.hype.model;
 
 import io.norberg.automatter.AutoMatter;
 

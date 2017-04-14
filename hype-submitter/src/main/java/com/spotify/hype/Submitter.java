@@ -35,9 +35,12 @@ import com.spotify.hype.gcs.RunManifest;
 import com.spotify.hype.gcs.RunManifestBuilder;
 import com.spotify.hype.gcs.StagingUtil;
 import com.spotify.hype.gcs.StagingUtil.StagedPackage;
+import com.spotify.hype.model.ContainerEngineCluster;
+import com.spotify.hype.model.DockerCluster;
 import com.spotify.hype.model.RunEnvironment;
 import com.spotify.hype.model.StagedContinuation;
 import com.spotify.hype.runner.DockerRunner;
+import com.spotify.hype.runner.KubernetesDockerRunner;
 import com.spotify.hype.runner.RunSpec;
 import com.spotify.hype.runner.VolumeRepository;
 import com.spotify.hype.util.Fn;
@@ -76,7 +79,7 @@ public class Submitter implements Closeable {
     return Submitter.createLocal(DockerCluster.dockerCluster());
   }
 
-  public static Submitter createLocal(final DockerCluster cluster) throws IOException {
+  public static Submitter createLocal(DockerCluster cluster) throws IOException {
     Path stagingLocation = new File(System.getProperty("user.home")).toPath()
         .resolve(".tmp")
         .resolve(STAGING_PREFIX);
@@ -231,7 +234,8 @@ public class Submitter implements Closeable {
    * reduces node-parallelism of submitted pods down to one node.
    */
   private void waitForDetach(RunEnvironment environment) {
-    if (environment.volumeMounts().stream().anyMatch(v -> !v.readOnly())) {
+    if (runner instanceof KubernetesDockerRunner
+        && environment.volumeMounts().stream().anyMatch(v -> !v.readOnly())) {
       try {
         Thread.sleep(10_000);
       } catch (InterruptedException ignore) {
