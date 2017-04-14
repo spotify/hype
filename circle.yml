@@ -14,3 +14,5 @@ dependencies:
 test:
   override:
     -  mvn test -Ddockerfile.build.noCache=true
+  post:
+    - bash <(curl -s https://codecov.io/bash)
