@@ -37,6 +37,4 @@ package object hype {
     try fn(submitter)
     finally submitter.close()
   }
-
-  type HypeFn[A] = util.Fn[A]
 }
