@@ -22,7 +22,7 @@ A library for seamlessly executing arbitrary JVM closures in [Docker] containers
 
 # User guide
 
-Hype allows you to write code in the Java or Scala. But it also gives it the power to be executed
+Hype allows you to write code in Java or Scala. But it also gives it the power to be executed
 in a distributed environment where different parts of it might run concurrently in separate
 environments, each using different amounts of memory and cpu. With the help of Kubernetes and a
 cloud provider like Google Cloud Platform, you'll have dynamically scheduled resources available
