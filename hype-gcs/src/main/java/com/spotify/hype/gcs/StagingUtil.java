@@ -54,6 +54,7 @@ import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -100,53 +101,9 @@ public class StagingUtil {
   private static final ConcurrentMap<UploadPair, ListenableFuture<StagedPackage>> UPLOAD_CACHE =
       new ConcurrentHashMap<>();
 
+  private static final AtomicInteger UPLOAD_CALL_COUNTER = new AtomicInteger(0);
   private static final ForkJoinPool FJP = new ForkJoinPool(32);
   private static final long UPLOAD_TIMEOUT_MINUTES = 10;
-
-  /**
-   * Compute and cache the attributes of a classpath element that we will need to stage it.
-   *
-   * @param classpathElement the file or directory to be staged.
-   * @param stagingPath The base location for staged classpath elements.
-   * @param overridePackageName If non-null, use the given value as the package name
-   *                            instead of generating one automatically.
-   * @return a {@link StagedPackage} that containing metadata about the object to be staged.
-   */
-  private static StagedPackage createStagedPackage(
-      File classpathElement,
-      String stagingPath,
-      String overridePackageName) {
-    try {
-      Path targetPathPath = Paths.get(URI.create(stagingPath));
-      boolean directory = classpathElement.isDirectory();
-
-      // Compute size and hash in one pass over file or directory.
-      Hasher hasher = Hashing.md5().newHasher();
-      OutputStream hashStream = Funnels.asOutputStream(hasher);
-      CountingOutputStream countingOutputStream = new CountingOutputStream(hashStream);
-
-      if (!directory) {
-        // Files are staged as-is.
-        Files.asByteSource(classpathElement).copyTo(countingOutputStream);
-      } else {
-        // Directories are recursively zipped.
-        ZipFiles.zipDirectory(classpathElement, countingOutputStream);
-      }
-
-      long size = countingOutputStream.getCount();
-      String hash = Base64Variants.MODIFIED_FOR_URL.encode(hasher.hash().asBytes());
-
-      // Create the DataflowPackage with staging name and location.
-      String uniqueName = getUniqueContentName(classpathElement, hash);
-      Path resourcePath = targetPathPath.resolve(uniqueName);
-      return stagedPackage(
-          overridePackageName != null ? overridePackageName : uniqueName,
-          resourcePath.toUri().toString(),
-          size);
-    } catch (IOException e) {
-      throw new RuntimeException("Package setup failure for " + classpathElement, e);
-    }
-  }
 
   /**
    * Transfers the classpath elements to the staging location.
@@ -174,96 +131,16 @@ public class StagingUtil {
           "Can't stage classpath elements on because no staging location has been provided");
     }
 
-    int numUploaded = 0;
-    int numCached = 0;
+    final StageCallResults stageCallResults =
+        new StagingCall(classpathElements, stagingPath).doStage();
 
-    List<ListenableFuture<StagedPackage>> uploadFutures = classpathElements.stream()
-        .filter(classpathElement -> {
-          File file = new File(classpathElement);
-          if (!file.exists()) {
-            LOG.warn("Skipping non-existent classpath element {} that was specified.",
-                classpathElement);
-            return false;
-          } else {
-            return true;
-          }
-        })
-        .map(classpathElement -> uploadClasspathElement(classpathElement, stagingPath))
-        .collect(toList());
+    LOG.info("Uploading complete: {} files newly uploaded, {} files cached",
+        stageCallResults.numUploaded(), stageCallResults.numCached());
 
-    List<StagedPackage> stagedPackages;
-    try {
-      stagedPackages = Futures.getChecked(
-          Futures.allAsList(uploadFutures),
-          IOException.class,
-          UPLOAD_TIMEOUT_MINUTES, MINUTES);
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
-
-    LOG.info("Uploading complete: {} files newly uploaded, {} files cached", numUploaded, numCached);
-
-    return stagedPackages;
+    return stageCallResults.stagedPackages();
   }
 
-  private static ListenableFuture<StagedPackage> uploadClasspathElement(String classpathElement,
-                                                                        String stagingPath) {
-    return UPLOAD_CACHE.computeIfAbsent(uploadPair(classpathElement, stagingPath),
-        StagingUtil::uploadClasspathElement);
-  }
-
-  private static ListenableFuture<StagedPackage> uploadClasspathElement(UploadPair uploadPair) {
-    StagedPackage stagedPackage = inspectClasspathElement(uploadPair);
-    String classpathElement = uploadPair.classpathElement();
-    String target = stagedPackage.location();
-    Path targetPath = Paths.get(URI.create(target));
-
-    SettableFuture<StagedPackage> future = SettableFuture.create();
-
-    FJP.submit(() -> {
-      // TODO: Should we attempt to detect the Mime type rather than
-      // always using MimeTypes.BINARY?
-      try {
-        try {
-          long remoteLength = java.nio.file.Files.size(targetPath);
-          if (remoteLength == stagedPackage.size()) {
-            LOG.debug("Skipping classpath element already staged: {} at {}",
-                classpathElement, target);
-//            numCached++;
-
-            future.set(stagedPackage);
-            return;
-          }
-        } catch (FileNotFoundException | NoSuchFileException expected) {
-          // If the file doesn't exist, it means we need to upload it.
-        }
-
-        upload(classpathElement, target, targetPath, 0);
-        future.set(stagedPackage);
-      } catch (Exception e) {
-        future.setException(new RuntimeException("Could not stage classpath element: "
-                                                 + classpathElement, e));
-      }
-    });
-
-    return future;
-  }
-
-  private static StagedPackage inspectClasspathElement(UploadPair uploadPair) {
-    String classpathElement = uploadPair.classpathElement();
-    String stagingPath = uploadPair.stagingPath();
-    String packageName = null;
-    if (classpathElement.contains("=")) {
-      String[] components = classpathElement.split("=", 2);
-      packageName = components[0];
-      classpathElement = components[1];
-    }
-
-    File file = new File(classpathElement);
-    return createStagedPackage(file, stagingPath, packageName);
-  }
-
-  private static int upload(String classpathElement, String target, Path targetPath, int numUploaded)
+  private static void upload(String classpathElement, String target, Path targetPath)
       throws IOException, InterruptedException {
     ArrayList<OpenOption> options = new ArrayList<>();
     options.add(WRITE);
@@ -282,7 +159,6 @@ public class StagingUtil {
             options.toArray(new OpenOption[options.size()]))) {
           copyContent(classpathElement, writer);
         }
-        numUploaded++;
         break;
       } catch (IOException e) {
         if (ERROR_EXTRACTOR.accessDenied(e)) {
@@ -307,8 +183,6 @@ public class StagingUtil {
         }
       }
     }
-
-    return numUploaded;
   }
 
   /**
@@ -350,11 +224,154 @@ public class StagingUtil {
     }
   }
 
+  /**
+   * Method object for doing the actual staging. Since the actual upload happens in the cache, each
+   * instance will have a unique id that is set on the {@link StagedPackage} objects when it is
+   * uploaded. This is then used to tally the uploaded/cached counts at the end of the upload.
+   */
+  private static class StagingCall {
+
+    final int id = UPLOAD_CALL_COUNTER.getAndIncrement();
+    final Collection<String> classpathElements;
+    final String stagingPath;
+
+    private StagingCall(Collection<String> classpathElements, String stagingPath) {
+      this.classpathElements = classpathElements;
+      this.stagingPath = stagingPath;
+    }
+
+    StageCallResults doStage() {
+      List<ListenableFuture<StagedPackage>> uploadFutures = classpathElements.stream()
+          .filter(classpathElement -> {
+            File file = new File(classpathElement);
+            if (!file.exists()) {
+              LOG.warn("Skipping non-existent classpath element {} that was specified.",
+                  classpathElement);
+              return false;
+            } else {
+              return true;
+            }
+          })
+          .map(this::uploadClasspathElement)
+          .collect(toList());
+
+      List<StagedPackage> stagedPackages;
+      try {
+        stagedPackages = Futures.getChecked(
+            Futures.allAsList(uploadFutures),
+            IOException.class,
+            UPLOAD_TIMEOUT_MINUTES, MINUTES);
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
+
+      // How many of these were uploaded by us vs. other calls
+      int numUploaded = (int) stagedPackages.stream().filter(p -> p.stageCallId() == id).count();
+      int numCached = (int) stagedPackages.stream().filter(p -> p.stageCallId() != id).count();
+
+      return stageCallResults(stagedPackages, numUploaded, numCached);
+    }
+
+    private ListenableFuture<StagedPackage> uploadClasspathElement(String classpathElement) {
+      return UPLOAD_CACHE.computeIfAbsent(uploadPair(classpathElement, stagingPath),
+          this::uploadClasspathElement);
+    }
+
+    private ListenableFuture<StagedPackage> uploadClasspathElement(UploadPair uploadPair) {
+      StagedPackage stagedPackage = createStagedPackage(uploadPair);
+      String classpathElement = uploadPair.classpathElement();
+      String target = stagedPackage.location();
+      Path targetPath = Paths.get(URI.create(target));
+
+      SettableFuture<StagedPackage> future = SettableFuture.create();
+
+      FJP.submit(() -> {
+        // TODO: Should we attempt to detect the Mime type rather than
+        // always using MimeTypes.BINARY?
+        try {
+          try {
+            long remoteLength = java.nio.file.Files.size(targetPath);
+            if (remoteLength == stagedPackage.size()) {
+              LOG.debug("Skipping classpath element already staged: {} at {}",
+                  classpathElement, target);
+
+              future.set(stagedPackage.asCached());
+              return;
+            }
+          } catch (FileNotFoundException | NoSuchFileException expected) {
+            // If the file doesn't exist, it means we need to upload it.
+          }
+
+          upload(classpathElement, target, targetPath);
+          future.set(stagedPackage);
+        } catch (Exception e) {
+          future.setException(new RuntimeException("Could not stage classpath element: "
+                                                   + classpathElement, e));
+        }
+      });
+
+      return future;
+    }
+
+    /**
+     * Compute and cache the attributes of a classpath element that we will need to stage it.
+     */
+    private StagedPackage createStagedPackage(UploadPair uploadPair) {
+      String classpathElement = uploadPair.classpathElement();
+      String stagingPath = uploadPair.stagingPath();
+      String overridePackageName = null;
+      if (classpathElement.contains("=")) {
+        String[] components = classpathElement.split("=", 2);
+        overridePackageName = components[0];
+        classpathElement = components[1];
+      }
+
+      File classpathFile = new File(classpathElement);
+
+      try {
+        Path targetPathPath = Paths.get(URI.create(stagingPath));
+        boolean directory = classpathFile.isDirectory();
+
+        // Compute size and hash in one pass over file or directory.
+        Hasher hasher = Hashing.md5().newHasher();
+        OutputStream hashStream = Funnels.asOutputStream(hasher);
+        CountingOutputStream countingOutputStream = new CountingOutputStream(hashStream);
+
+        if (!directory) {
+          // Files are staged as-is.
+          Files.asByteSource(classpathFile).copyTo(countingOutputStream);
+        } else {
+          // Directories are recursively zipped.
+          ZipFiles.zipDirectory(classpathFile, countingOutputStream);
+        }
+
+        long size = countingOutputStream.getCount();
+        String hash = Base64Variants.MODIFIED_FOR_URL.encode(hasher.hash().asBytes());
+
+        // Create the DataflowPackage with staging name and location.
+        String uniqueName = getUniqueContentName(classpathFile, hash);
+        Path resourcePath = targetPathPath.resolve(uniqueName);
+        return stagedPackage(
+            overridePackageName != null ? overridePackageName : uniqueName,
+            resourcePath.toUri().toString(),
+            size, id);
+      } catch (IOException e) {
+        throw new RuntimeException("Package setup failure for " + classpathElement, e);
+      }
+    }
+  }
+
   @AutoValue
   public static abstract class StagedPackage {
     public abstract String name();
     public abstract String location();
     public abstract long size();
+
+    abstract int stageCallId();
+
+    StagedPackage asCached() {
+      return stagedPackage(name(), location(), size(), -1);
+    }
   }
 
   @AutoValue
@@ -363,11 +380,23 @@ public class StagingUtil {
     abstract String stagingPath();
   }
 
-  private static StagedPackage stagedPackage(String name, String location, long size) {
-    return new AutoValue_StagingUtil_StagedPackage(name, location, size);
+  @AutoValue
+  static abstract class StageCallResults {
+    abstract List<StagedPackage> stagedPackages();
+    abstract int numUploaded();
+    abstract int numCached();
+  }
+
+  private static StagedPackage stagedPackage(String name, String location, long size, int stageCallId) {
+    return new AutoValue_StagingUtil_StagedPackage(name, location, size, stageCallId);
   }
 
   private static UploadPair uploadPair(String classpathElement, String stagingPath) {
     return new AutoValue_StagingUtil_UploadPair(classpathElement, stagingPath);
+  }
+
+  private static StageCallResults stageCallResults(List<StagedPackage> stagedPackages,
+                                                   int numUploaded, int numCached) {
+    return new AutoValue_StagingUtil_StageCallResults(stagedPackages, numUploaded, numCached);
   }
 }
