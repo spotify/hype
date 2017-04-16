@@ -61,8 +61,8 @@ public class ManifestLoaderTest {
         StagingUtil.stageClasspathElements(testFiles, stagingLocation);
 
     RunManifest manifest = new RunManifestBuilder()
-        .continuation(stagedPackages.get(0).getName())
-        .files(stagedPackages.stream().map(StagedPackage::getName).collect(toList()))
+        .continuation(stagedPackages.get(0).name())
+        .files(stagedPackages.stream().map(StagedPackage::name).collect(toList()))
         .build();
 
     Path manifestFile = stagingPath.resolve("manifest.txt");

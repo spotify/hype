@@ -21,16 +21,22 @@ package com.spotify.hype.gcs;
 import static com.google.cloud.storage.contrib.nio.CloudStorageOptions.withMimeType;
 import static java.nio.file.StandardOpenOption.CREATE_NEW;
 import static java.nio.file.StandardOpenOption.WRITE;
+import static java.util.concurrent.TimeUnit.MINUTES;
+import static java.util.stream.Collectors.toList;
 
 import com.fasterxml.jackson.core.Base64Variants;
 import com.google.api.client.util.BackOff;
 import com.google.api.client.util.Sleeper;
+import com.google.auto.value.AutoValue;
 import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import com.google.common.hash.Funnels;
 import com.google.common.hash.Hasher;
 import com.google.common.hash.Hashing;
 import com.google.common.io.CountingOutputStream;
 import com.google.common.io.Files;
+import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.SettableFuture;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -45,7 +51,9 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ForkJoinPool;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -61,12 +69,12 @@ public class StagingUtil {
 
   private static final Logger LOG = LoggerFactory.getLogger(StagingUtil.class);
 
-  public static final String BINARY = "application/octet-stream";
+  private static final String BINARY = "application/octet-stream";
 
   /**
    * A reasonable upper bound on the number of jars required to launch a Dataflow job.
    */
-  public static final int SANE_CLASSPATH_SIZE = 1000;
+  private static final int SANE_CLASSPATH_SIZE = 1000;
   /**
    * The initial interval to use between package staging attempts.
    */
@@ -86,21 +94,14 @@ public class StagingUtil {
   private static final ApiErrorExtractor ERROR_EXTRACTOR = new ApiErrorExtractor();
 
   /**
-   * Creates a DataflowPackage containing information about how a classpath element should be
-   * staged, including the staging destination as well as its size and hash.
-   *
-   * @param classpathElement The local path for the classpath element.
-   * @param stagingPath The base location for staged classpath elements.
-   * @param overridePackageName If non-null, use the given value as the package name
-   *                            instead of generating one automatically.
-   * @return The package.
+   * Static cache for uploaded files. Used to avoid reading and checking the status of a file
+   * repeatedly within the same process.
    */
-  @Deprecated
-  public static StagedPackage createPackage(File classpathElement,
-                                            String stagingPath, String overridePackageName) {
-    return createPackageAttributes(classpathElement, stagingPath, overridePackageName)
-        .getStagedPackage();
-  }
+  private static final ConcurrentMap<UploadPair, ListenableFuture<StagedPackage>> UPLOAD_CACHE =
+      new ConcurrentHashMap<>();
+
+  private static final ForkJoinPool FJP = new ForkJoinPool(32);
+  private static final long UPLOAD_TIMEOUT_MINUTES = 10;
 
   /**
    * Compute and cache the attributes of a classpath element that we will need to stage it.
@@ -109,9 +110,9 @@ public class StagingUtil {
    * @param stagingPath The base location for staged classpath elements.
    * @param overridePackageName If non-null, use the given value as the package name
    *                            instead of generating one automatically.
-   * @return a {@link PackageAttributes} that containing metadata about the object to be staged.
+   * @return a {@link StagedPackage} that containing metadata about the object to be staged.
    */
-  static PackageAttributes createPackageAttributes(
+  private static StagedPackage createStagedPackage(
       File classpathElement,
       String stagingPath,
       String overridePackageName) {
@@ -138,11 +139,10 @@ public class StagingUtil {
       // Create the DataflowPackage with staging name and location.
       String uniqueName = getUniqueContentName(classpathElement, hash);
       Path resourcePath = targetPathPath.resolve(uniqueName);
-      StagedPackage target = new StagedPackage();
-      target.setName(overridePackageName != null ? overridePackageName : uniqueName);
-      target.setLocation(resourcePath.toUri().toString());
-
-      return new PackageAttributes(size, hash, directory, target);
+      return stagedPackage(
+          overridePackageName != null ? overridePackageName : uniqueName,
+          resourcePath.toUri().toString(),
+          size);
     } catch (IOException e) {
       throw new RuntimeException("Package setup failure for " + classpathElement, e);
     }
@@ -157,13 +157,6 @@ public class StagingUtil {
    */
   public static List<StagedPackage> stageClasspathElements(
       Collection<String> classpathElements, String stagingPath) {
-    return stageClasspathElements(classpathElements, stagingPath, Sleeper.DEFAULT);
-  }
-
-  // Visible for testing.
-  static List<StagedPackage> stageClasspathElements(
-      Collection<String> classpathElements, String stagingPath,
-      Sleeper retrySleeper) {
     LOG.info("Uploading {} files to staging location {} to "
              + "prepare for execution.", classpathElements.size(), stagingPath);
 
@@ -176,8 +169,6 @@ public class StagingUtil {
           classpathElements.size());
     }
 
-    ArrayList<StagedPackage> packages = new ArrayList<>();
-
     if (stagingPath == null) {
       throw new IllegalArgumentException(
           "Can't stage classpath elements on because no staging location has been provided");
@@ -185,92 +176,139 @@ public class StagingUtil {
 
     int numUploaded = 0;
     int numCached = 0;
-    for (String classpathElement : classpathElements) {
-      String packageName = null;
-      if (classpathElement.contains("=")) {
-        String[] components = classpathElement.split("=", 2);
-        packageName = components[0];
-        classpathElement = components[1];
-      }
 
-      File file = new File(classpathElement);
-      if (!file.exists()) {
-        LOG.warn("Skipping non-existent classpath element {} that was specified.",
-            classpathElement);
-        continue;
-      }
+    List<ListenableFuture<StagedPackage>> uploadFutures = classpathElements.stream()
+        .filter(classpathElement -> {
+          File file = new File(classpathElement);
+          if (!file.exists()) {
+            LOG.warn("Skipping non-existent classpath element {} that was specified.",
+                classpathElement);
+            return false;
+          } else {
+            return true;
+          }
+        })
+        .map(classpathElement -> uploadClasspathElement(classpathElement, stagingPath))
+        .collect(toList());
 
-      PackageAttributes attributes = createPackageAttributes(file, stagingPath, packageName);
+    List<StagedPackage> stagedPackages;
+    try {
+      stagedPackages = Futures.getChecked(
+          Futures.allAsList(uploadFutures),
+          IOException.class,
+          UPLOAD_TIMEOUT_MINUTES, MINUTES);
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
 
-      StagedPackage workflowPackage = attributes.getStagedPackage();
-      packages.add(workflowPackage);
-      String target = workflowPackage.getLocation();
-      Path targetPath = Paths.get(URI.create(target));
+    LOG.info("Uploading complete: {} files newly uploaded, {} files cached", numUploaded, numCached);
 
+    return stagedPackages;
+  }
+
+  private static ListenableFuture<StagedPackage> uploadClasspathElement(String classpathElement,
+                                                                        String stagingPath) {
+    return UPLOAD_CACHE.computeIfAbsent(uploadPair(classpathElement, stagingPath),
+        StagingUtil::uploadClasspathElement);
+  }
+
+  private static ListenableFuture<StagedPackage> uploadClasspathElement(UploadPair uploadPair) {
+    StagedPackage stagedPackage = inspectClasspathElement(uploadPair);
+    String classpathElement = uploadPair.classpathElement();
+    String target = stagedPackage.location();
+    Path targetPath = Paths.get(URI.create(target));
+
+    SettableFuture<StagedPackage> future = SettableFuture.create();
+
+    FJP.submit(() -> {
       // TODO: Should we attempt to detect the Mime type rather than
       // always using MimeTypes.BINARY?
       try {
         try {
           long remoteLength = java.nio.file.Files.size(targetPath);
-          if (remoteLength == attributes.getSize()) {
+          if (remoteLength == stagedPackage.size()) {
             LOG.debug("Skipping classpath element already staged: {} at {}",
                 classpathElement, target);
-            numCached++;
-            continue;
+//            numCached++;
+
+            future.set(stagedPackage);
+            return;
           }
         } catch (FileNotFoundException | NoSuchFileException expected) {
           // If the file doesn't exist, it means we need to upload it.
         }
 
-        ArrayList<OpenOption> options = new ArrayList<>();
-        options.add(WRITE);
-        options.add(CREATE_NEW);
-        if ("gs".equals(targetPath.toUri().getScheme())) {
-          options.add(withMimeType(BINARY));
-        }
-
-        // Upload file, retrying on failure.
-        BackOff backoff = BACKOFF_FACTORY.backoff();
-        while (true) {
-          try {
-            LOG.debug("Uploading classpath element {} to {}", classpathElement, target);
-            try (WritableByteChannel writer = java.nio.file.Files.newByteChannel(targetPath,
-                options.toArray(new OpenOption[options.size()]))) {
-              copyContent(classpathElement, writer);
-            }
-            numUploaded++;
-            break;
-          } catch (IOException e) {
-            if (ERROR_EXTRACTOR.accessDenied(e)) {
-              String errorMessage = String.format(
-                  "Uploaded failed due to permissions error, will NOT retry staging "
-                  + "of classpath %s. Please verify credentials are valid and that you have "
-                  + "write access to %s. Stale credentials can be resolved by executing "
-                  + "'gcloud auth login'.", classpathElement, target);
-              LOG.error(errorMessage);
-              throw new IOException(errorMessage, e);
-            }
-            long sleep = backoff.nextBackOffMillis();
-            if (sleep == BackOff.STOP) {
-              // Rethrow last error, to be included as a cause in the catch below.
-              LOG.error("Upload failed, will NOT retry staging of classpath: {}",
-                  classpathElement, e);
-              throw e;
-            } else {
-              LOG.warn("Upload attempt failed, sleeping before retrying staging of classpath: {}",
-                  classpathElement, e);
-              retrySleeper.sleep(sleep);
-            }
-          }
-        }
+        upload(classpathElement, target, targetPath, 0);
+        future.set(stagedPackage);
       } catch (Exception e) {
-        throw new RuntimeException("Could not stage classpath element: " + classpathElement, e);
+        future.setException(new RuntimeException("Could not stage classpath element: "
+                                                 + classpathElement, e));
+      }
+    });
+
+    return future;
+  }
+
+  private static StagedPackage inspectClasspathElement(UploadPair uploadPair) {
+    String classpathElement = uploadPair.classpathElement();
+    String stagingPath = uploadPair.stagingPath();
+    String packageName = null;
+    if (classpathElement.contains("=")) {
+      String[] components = classpathElement.split("=", 2);
+      packageName = components[0];
+      classpathElement = components[1];
+    }
+
+    File file = new File(classpathElement);
+    return createStagedPackage(file, stagingPath, packageName);
+  }
+
+  private static int upload(String classpathElement, String target, Path targetPath, int numUploaded)
+      throws IOException, InterruptedException {
+    ArrayList<OpenOption> options = new ArrayList<>();
+    options.add(WRITE);
+    options.add(CREATE_NEW);
+    if ("gs".equals(targetPath.toUri().getScheme())) {
+      options.add(withMimeType(BINARY));
+    }
+
+    // Upload file, retrying on failure.
+    Sleeper retrySleeper = Sleeper.DEFAULT;
+    BackOff backoff = BACKOFF_FACTORY.backoff();
+    while (true) {
+      try {
+        LOG.debug("Uploading classpath element {} to {}", classpathElement, target);
+        try (WritableByteChannel writer = java.nio.file.Files.newByteChannel(targetPath,
+            options.toArray(new OpenOption[options.size()]))) {
+          copyContent(classpathElement, writer);
+        }
+        numUploaded++;
+        break;
+      } catch (IOException e) {
+        if (ERROR_EXTRACTOR.accessDenied(e)) {
+          String errorMessage = String.format(
+              "Uploaded failed due to permissions error, will NOT retry staging "
+              + "of classpath %s. Please verify credentials are valid and that you have "
+              + "write access to %s. Stale credentials can be resolved by executing "
+              + "'gcloud auth login'.", classpathElement, target);
+          LOG.error(errorMessage);
+          throw new IOException(errorMessage, e);
+        }
+        long sleep = backoff.nextBackOffMillis();
+        if (sleep == BackOff.STOP) {
+          // Rethrow last error, to be included as a cause in the catch below.
+          LOG.error("Upload failed, will NOT retry staging of classpath: {}",
+              classpathElement, e);
+          throw e;
+        } else {
+          LOG.warn("Upload attempt failed, sleeping before retrying staging of classpath: {}",
+              classpathElement, e);
+          retrySleeper.sleep(sleep);
+        }
       }
     }
 
-    LOG.info("Uploading complete: {} files newly uploaded, {} files cached", numUploaded, numCached);
-
-    return packages;
+    return numUploaded;
   }
 
   /**
@@ -283,7 +321,7 @@ public class StagingUtil {
    * file="a/b/c/d", contentHash="f000" => d-f000
    * </pre>
    */
-  static String getUniqueContentName(File classpathElement, String contentHash) {
+  private static String getUniqueContentName(File classpathElement, String contentHash) {
     String fileName = Files.getNameWithoutExtension(classpathElement.getAbsolutePath());
     String fileExtension = Files.getFileExtension(classpathElement.getAbsolutePath());
     if (classpathElement.isDirectory()) {
@@ -312,80 +350,24 @@ public class StagingUtil {
     }
   }
 
-  /**
-   * Holds the metadata necessary to stage a file or confirm that a staged file has not changed.
-   */
-  static class PackageAttributes {
-    private final boolean directory;
-    private final long size;
-    private final String hash;
-    private StagedPackage stagedPackage;
-
-    public PackageAttributes(long size, String hash, boolean directory,
-                             StagedPackage stagedPackage) {
-      this.size = size;
-      this.hash = Objects.requireNonNull(hash, "hash");
-      this.directory = directory;
-      this.stagedPackage = Objects.requireNonNull(stagedPackage, "dataflowPackage");
-    }
-
-    public StagedPackage getStagedPackage() {
-      return stagedPackage;
-    }
-
-    public boolean isDirectory() {
-      return directory;
-    }
-
-    public long getSize() {
-      return size;
-    }
-
-    public String getHash() {
-      return hash;
-    }
+  @AutoValue
+  public static abstract class StagedPackage {
+    public abstract String name();
+    public abstract String location();
+    public abstract long size();
   }
 
-  public static class StagedPackage {
-
-    private String name;
-    private String location;
-
-    public String getName() {
-      return name;
-    }
-
-    public void setName(String name) {
-      this.name = name;
-    }
-
-    public String getLocation() {
-      return location;
-    }
-
-    public void setLocation(String location) {
-      this.location = location;
-    }
+  @AutoValue
+  static abstract class UploadPair {
+    abstract String classpathElement();
+    abstract String stagingPath();
   }
 
-  // todo: implement parallel uploads
-  //  private static final ForkJoinPool FJP = new ForkJoinPool(32);
-  //  private static final long UPLOAD_TIMEOUT_MINUTES = 10;
-  //  private static final ConcurrentMap<UploadPair, ListenableFuture<URI>> UPLOAD_CACHE =
-  //      new ConcurrentHashMap<>();
-  //  @AutoValue
-  //  public static abstract class UploadPair {
-  //    abstract Path prefix();
-  //    abstract Path file();
-  //  }
-  //
-  //  static UploadPair uploadPair(Path prefix, Path file) {
-  //    return new AutoValue_Submitter_UploadPair(prefix, file);
-  //  }
+  private static StagedPackage stagedPackage(String name, String location, long size) {
+    return new AutoValue_StagingUtil_StagedPackage(name, location, size);
+  }
 
-  //  private ListenableFuture<URI> upload(Path prefix, Path file) {
-  //    return UPLOAD_CACHE.computeIfAbsent(uploadPair(prefix, file), this::upload);
-  //  }
-  //
-  //  private ListenableFuture<URI> upload(UploadPair uploadPair) {
+  private static UploadPair uploadPair(String classpathElement, String stagingPath) {
+    return new AutoValue_StagingUtil_UploadPair(classpathElement, stagingPath);
+  }
 }

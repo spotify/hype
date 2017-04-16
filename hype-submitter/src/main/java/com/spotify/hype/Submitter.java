@@ -187,20 +187,20 @@ public class Submitter implements Closeable {
         this.stagingLocation.toString());
 
     final Optional<StagedPackage> stagedContinuationPackage = stagedPackages.stream()
-        .filter(p -> p.getName().contains(continuationFileName))
+        .filter(p -> p.name().contains(continuationFileName))
         .findFirst();
 
     if (!stagedContinuationPackage.isPresent()) {
       throw new RuntimeException();
     }
 
-    final URI uri = URI.create(stagedContinuationPackage.get().getLocation());
+    final URI uri = URI.create(stagedContinuationPackage.get().location());
     final String cont = Paths.get(uri).getFileName().toString();
 
     // todo: move manifest creation into StagingUtil
     final RunManifest manifest = new RunManifestBuilder()
         .continuation(cont)
-        .classPathFiles(stagedPackages.stream().map(StagedPackage::getName).collect(toList()))
+        .classPathFiles(stagedPackages.stream().map(StagedPackage::name).collect(toList()))
         // todo: files
         .build();
     try {
