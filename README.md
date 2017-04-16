@@ -6,13 +6,34 @@ hype
 [![Maven Central](https://img.shields.io/maven-central/v/com.spotify/hype-root.svg)](https://search.maven.org/#search%7Cga%7C1%7Cg%3A%22com.spotify%22%20hype*)
 [![GitHub license](https://img.shields.io/github/license/spotify/hype.svg)](./LICENSE)
 
-A toolkit for seamlessly executing arbitrary JVM closures in [Docker] containers on [Kubernetes].
+A library for seamlessly executing arbitrary JVM closures in [Docker] containers on [Kubernetes].
 
 ---
 
-## Build env image
+- [User guide](#user-guide)
+  * [Build environment images](#build-environment-images)
+  * [Run functions](#run-functions)
+  * [Full example](#full-example)
+- [Process overview](#process-overview)
+- [Persistent volumes](#persistent-volumes)
+- [Environment Pod from YAML](#environment-pod-from-yaml)
 
-In order for hype to be able to execute closures in your docker images, you'll have to install
+---
+
+# User guide
+
+Hype allows you to write code in the Java or Scala. But it also gives it the power to be executed
+in a distributed environment where different parts of it might run concurrently in separate
+environments, each using different amounts of memory and cpu. With the help of Kubernetes and a
+cloud provider like Google Cloud Platform, you'll have dynamically scheduled resources available
+for your code to utilize.
+
+All this might sound a bit abstract, so let's run through a concrete example. We'll be using Scala
+for the examples, but all the core functionality is available in Java as well.
+
+## Build environment images
+
+In order for Hype to be able to execute functions in your docker images, you'll have to install
 the `hype-run` command by adding the following to your `Dockerfile`:
 
 ```dockerfile
@@ -26,57 +47,113 @@ It is important to have exactly this `ENTRYPOINT` as the Kubernetes Pods will ex
 
 See example [`Dockerfile`](hype-docker/Dockerfile)
 
-## Submit
+## Run functions
 
-Create a hype `Submitter` and use `runOnCluster(fn, env)` to run a closure in your docker container
-environment on a Kubernetes cluster. This example runs a simple block of code that just extracts
-the operating system name and lists all environment variables.
+In order to run functions on the cluster, you'll have to set up an `implicit` `Submitter` value.
+The submitter encapsulates "where" to submit your functions.
 
 ```scala
+// Use a Google Cloud Container Engine managed cluster
+val cluster = ContainerEngineCluster("gcp-project-id", "gce-zone-id", "gke-cluster-id")
+implicit val submitter = GkeSubmitter("gs://my-staging-bucket", cluster)
+```
+
+For testing, where you might want to run on a local Docker daemon, use `LocalSubmitter(...)`.
+
+Writing functions that can be executed with Hype is simple, just wrap them up as an `HFn[T]`. An
+`HFn[T]` is a closure that allows Hype to move the actual evaluation into a Docker container.
+
+```scala
+def example(arg: String) = HFn[String] {
+  arg + " world!"
+}
+```
+
+Now we'll have to define the environment we want this function to run in. This is where we'll
+reference the docker image we built earlier. The value can be declared `implicit`, but this is
+not required as it can explicitly be referenced when submitting functions.
+
+```scala
+implicit val env = Environment("gcr.io/gcp-project-id/env-image")
+```
+
+Finally, use the `#!` (hashbang) operator to execute an `HFn[T]` in a a given environment. It will
+use the `Submitter` and `RunEnvironment` which should be in scope. When execution is complete,
+it'll return the function value back to your local context.
+
+```scala
+val result = example("hello") #!
+```
+
+As we'll see later, Hype gives you more fine grained control over the execution environment for each
+function. Using an `implicit` value as we did above works in most cases, but the hashbang (`#!`)
+operator also allows you to specify an explicit environment.
+
+```scala
+val result = example("hello") #! env.withRequest("cpu", "750m")
+```
+
+## Full example
+
+This is a full example that runs a simple function that executes an arbitrary command and lists all
+environment variables. It uses the Scala [sys.process] package to execute commands in the function.
+
+```scala
+import sys.process._
 import com.spotify.hype._
-import scala.sys.process._
 
 // A simple model for describing the runtime environment
 case class EnvVar(name: String, value: String)
-case class Res(uname: String, vars: List[EnvVar])
+case class Res(cmdOutput: String, mounts: String, vars: List[EnvVar])
 
-def extractEnv: Res = {
-  val uname = "uname -a" !!
-  val vars = for ((name, value) <- sys.env.toList)
-      yield EnvVar(name, value)
+def extractEnv(cmd: String) = HFn[Res] {
+  val cmdOutput = cmd !!
+  val mounts = "df -h" !!
+  val vars = for ((key, value) <- sys.env.toList)
+    yield EnvVar(key, value)
 
-  Res(uname, vars)
+  Res(cmdOutput, mounts, vars)
 }
 
 // Use a Google Cloud Container Engine managed cluster
-val cluster = ContainerEngineCluster(
-    "gcp-project-id", "gce-zone-id", "gke-cluster-id") // modify these
+val cluster = ContainerEngineCluster("gcp-project-id", "gce-zone-id", "gke-cluster-id")
 
-val env = Environment("gcr.io/gcp-project-id/env-image") // the env image we created earlier
+implicit val submitter = GkeSubmitter("gs://my-staging-bucket", cluster)
+implicit val env = Environment("gcr.io/gcp-project-id/env-image")
     .withSecret("gcp-key", "/etc/gcloud") // a pre-created k8s secret volume named "gcp-key"
 
-withSubmitter(cluster, "gs://my-staging-bucket") { submitter =>
-  val res = submitter.runOnCluster(extractEnv, env)
+// The hashbang operator runs this using the in-scope Submitter
+val res = extractEnv("uname -a") #!
 
-  println(res.uname)
-  res.vars.foreach(println)
-}
+println(res.cmdOutput)
+println(res.mounts)
+res.vars.foreach(println)
 ```
 
 The `res.vars` list returned should contain the environment variables that were present in the
 docker container while running on the cluster. Here's the output:
 
 ```
-[info] Uploading 71 files to staging location gs://my-staging-bucket/spotify-hype-staging to prepare for execution.
-[info] Uploading complete: 2 files newly uploaded, 69 files cached
-[info] Submitting gs://my-staging-bucket/spotify-hype-staging/manifest-oygpxf8x.txt to RunEnvironment{image=gcr.io/gcp-project-id/env-image, secretMount=Secret{name=gcp-key, mountPath=/etc/gcloud}, volumeMounts=[], resourceRequests={}}
-[info] Created pod hype-run-cv7cln6y
-[info] Pod hype-run-cv7cln6y assigned to node gke-hype-test-default-pool-e1122946-fg9k
-[info] Kubernetes pod hype-run-cv7cln6y exited with status Succeeded
-[info] Got termination message: gs://my-staging-bucket/spotify-hype-staging/continuation-3146633219315417117-knejMgGDzXTGnCqrYzeDzQ-hype-run-cv7cln6y-return.bin
+[info] Running HypeExample
+[info] 22:15:14.211 | INFO | StagingUtil |> Uploading 69 files to staging location gs://my-staging-bucket to prepare for execution.
+[info] 22:15:51.057 | INFO | StagingUtil |> Uploading complete: 4 files newly uploaded, 65 files cached
+[info] 22:15:51.673 | INFO | Submitter  |> Submitting gs://my-staging-bucket/manifest-9vhb5u18.txt to RunEnvironment{base=RunEnvironment.SimpleBase{image=gcr.io/gcp-project-id/env-image}, secretMounts=[Secret{name=gcp-key, mountPath=/etc/gcloud}], volumeMounts=[], resourceRequests={}}
+[info] 22:15:52.221 | INFO | DockerRunner |> Created pod hype-run-mymlbuw8
+[info] 22:15:52.351 | INFO | DockerRunner |> Pod hype-run-mymlbuw8 assigned to node gke-hype-test-default-pool-e1122946-fg9k
+[info] 22:16:02.454 | INFO | DockerRunner |> Kubernetes pod hype-run-mymlbuw8 exited with status Succeeded
+[info] 22:16:02.455 | INFO | DockerRunner |> Got termination message: gs://my-staging-bucket/continuation-993467547293976140-eUWBfwL9J2tHvWuJw0lU3g-hype-run-mymlbuw8-return.bin
+[info] Linux hype-run-mymlbuw8 4.4.21+ #1 SMP Fri Feb 17 15:34:45 PST 2017 x86_64 GNU/Linux
 [info]
-[info] Linux hype-run-cv7cln6y 4.4.21+ #1 SMP Fri Feb 17 15:34:45 PST 2017 x86_64 GNU/Linux
-[info] EnvVar(HYPE_EXECUTION_ID,hype-run-cv7cln6y)
+[info] Filesystem      Size  Used Avail Use% Mounted on
+[info] overlay          95G  4.1G   91G   5% /
+[info] tmpfs           7.4G     0  7.4G   0% /dev
+[info] tmpfs           7.4G     0  7.4G   0% /sys/fs/cgroup
+[info] tmpfs           7.4G  4.0K  7.4G   1% /etc/gcloud
+[info] /dev/sda1        95G  4.1G   91G   5% /etc/hosts
+[info] tmpfs           7.4G   12K  7.4G   1% /run/secrets/kubernetes.io/serviceaccount
+[info] shm              64M     0   64M   0% /dev/shm
+[info]
+[info] EnvVar(HYPE_EXECUTION_ID,hype-run-mymlbuw8)
 [info] EnvVar(GOOGLE_APPLICATION_CREDENTIALS,/etc/gcloud/key.json)
 [info] EnvVar(HOSTNAME,hype-run-cv7cln6y)
 [info] EnvVar(PATH,/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin)
@@ -85,7 +162,7 @@ docker container while running on the cluster. Here's the output:
 ...
 ```
 
-## Process overview
+# Process overview
 
 This describes what Hype does from a high level point of view.
 
@@ -95,7 +172,7 @@ This describes what Hype does from a high level point of view.
        height="336"/>
 </p>
 
-## Persistent Volumes
+# Persistent volumes
 
 Hype makes it easy to schedule persistent disk volumes across different closures in a workflow.
 A typical pattern seen in many use cases is to first use a disk in read-write mode to download and
@@ -123,52 +200,51 @@ parameters:
 We can then request volumes from this StorageClass using the Hype API:
 
 ```scala
+import sys.process._
 import com.spotify.hype._
-import scala.sys.process._
 
 // Create a 10Gi volume from the 'gce-ssd-pd' storage class
 val ssd10Gi = VolumeRequest("gce-ssd-pd", "10Gi")
 val mount = "/usr/share/volume" 
 
-def write: Int = {
+def write = HFn[Int] {
   // get a random word and store it in the volume
   s"curl -so $mount/word http://www.setgetgo.com/randomword/get.php" !
 }
 
-def read: String = {
+def read = HFn[String] {
   // read the word file
   s"cat $mount/word" !!
 }
 
-val cluster = ContainerEngineCluster(
-    "gcp-project-id", "gce-zone-id", "gke-cluster-id") // modify these
+val cluster = ContainerEngineCluster("gcp-project-id", "gce-zone-id", "gke-cluster-id")
+val env = Environment("gcr.io/gcp-project-id/env-image")
+implicit val submitter = GkeSubmitter("gs://my-staging-bucket", cluster)
 
-val env = Environment("gcr.io/gcp-project-id/env-image") // the env image we created earlier
+val readWriteEnv = env.withMount(ssd10Gi.mountReadWrite(mount))
+val readOnlyEnv = env.withMount(ssd10Gi.mountReadOnly(mount))
 
-withSubmitter(cluster, "gs://my-staging-bucket") { submitter =>
-  val readWriteEnv = env.withMount(ssd10Gi.mountReadWrite(mount))
-  submitter.runOnCluster(write, readWriteEnv)
+// Write to the volume
+write #! readWriteEnv
 
-  // Run 10 parallel functions that have read only access to the volume
-  val readOnlyEnv = env.withMount(ssd10Gi.mountReadOnly(mount))
-  val results = for (_ <- Range(0, 10).par)
-      yield submitter.runOnCluster(read, readOnlyEnv)
-}
+// Run 10 parallel functions that have read only access to the volume
+val results = for (_ <- Range(0, 10).par)
+    yield read #! readOnlyEnv
 ```
 
-The submissions from the parallel stream will each run concurrently in a separate pod and have
-read-only access to the `/usr/share/volume` mount. The volume should contain whatever was written
-to it from the first submission.
+The submissions from the parallel range will each run concurrently in separate pods and have
+read-only access to the `/usr/share/volume` mount. The volume should contain the random word that
+was written to it from the `write` function.
 
-Coordinating metadata and parameters across all submission runs should be just as trivial as
-passing values from function calls into other function closure.
+Coordinating metadata and parameters across multiple submissions should be just as trivial as
+passing values from function calls as arguments to other functions.
 
-## Load env pod from YAML
+# Environment Pod from YAML
 
-Even though the `environment(<image>, ...)` builder can be convenient for simple cases, sometimes
-more control over the Kubernetes Pod is desired. For these cases a regular Pod YAML file can be
-used as a base for the `RunEnvironment`. Hype will still manage any used Volume Claims and
-mounts, but will leave all other details as you've specified them.
+Even though the `Environment(<image>)` value can be convenient for simple cases, sometimes more
+control over the Kubernetes Pod is desired. For these cases a regular Pod YAML file can be used
+as a base for the `RunEnvironment`. Hype will still manage any used Volume Claims and mounts, but
+will leave all other details as you've specified them.
 
 Hype will expect at least these fields to be specified:
 
@@ -212,3 +288,4 @@ _This project is in early development stages, expect anything you see to change.
 [Docker]: https://www.docker.com
 [Kubernetes]: https://kubernetes.io/
 [GCE Persistent Disk]: http://blog.kubernetes.io/2016/10/dynamic-provisioning-and-storage-in-kubernetes.html
+[sys.process]: http://www.scala-lang.org/api/rc2/scala/sys/process/package.html

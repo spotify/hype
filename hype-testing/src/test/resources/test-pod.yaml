@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Pod
+
+spec:
+  restartPolicy: Never
+
+  containers:
+  - name: hype-run
+    image: spotify-hype-testing:${project.version}
+    imagePullPolicy: Always
+
+    env:
+    - name: HYPE_ENV
+      value: testing
