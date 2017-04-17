@@ -82,8 +82,8 @@ public class StagingUtilTest {
     assertThat(stagedPackages, hasSize(1));
     StagingUtil.StagedPackage stagedPackage = stagedPackages.get(0);
 
-    assertThat(stagedPackage.getName().matches(md5HashPattern()), is(true));
-    assertThat(stagedPackage.getLocation().matches(".+/" + md5HashPattern()), is(true));
+    assertThat(stagedPackage.name().matches(md5HashPattern()), is(true));
+    assertThat(stagedPackage.location().matches(".+/" + md5HashPattern()), is(true));
   }
 
   private String md5HashPattern() {
