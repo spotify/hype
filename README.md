@@ -24,15 +24,15 @@ A library for seamlessly executing arbitrary JVM closures in [Docker] containers
 
 Hype lets you execute arbitrary JVM code in a distributed environment where different parts
 might run concurrently in separate Docker containers, each using different amounts of memory,
-cpu and disk. With the help of Kubernetes and a cloud provider like Google Cloud Platform,
+CPU and disk. With the help of Kubernetes and a cloud provider such as Google Cloud Platform,
 you'll have dynamically scheduled resources available for your code to utilize.
 
 All this might sound a bit abstract, so let's run through a concrete example. We'll be using Scala
-for the examples, but all the core functionality is available in Java as well.
+for the examples, but all the core functionality is available from Java as well.
 
 ## Build environment images
 
-In order for Hype to be able to execute functions in your docker images, you'll have to install
+In order for Hype to be able to execute functions in your Docker images, you'll have to install
 the `hype-run` command by adding the following to your `Dockerfile`:
 
 ```dockerfile
@@ -69,14 +69,14 @@ def example(arg: String) = HFn[String] {
 ```
 
 Now we'll have to define the environment we want this function to run in. This is where we'll
-reference the docker image we built earlier. The value can be declared `implicit`, but this is
-not required as it can explicitly be referenced when submitting functions.
+reference the Docker image we built earlier. The environment value can be declared `implicit`,
+but this is not required as it can explicitly be referenced when submitting functions.
 
 ```scala
 implicit val env = Environment("gcr.io/gcp-project-id/env-image")
 ```
 
-Finally, use the `#!` (hashbang) operator to execute an `HFn[T]` in a a given environment. It will
+Finally, use the `#!` (hashbang) operator to execute an `HFn[T]` in a given environment. It will
 use the `Submitter` and `RunEnvironment` which should be in scope. When execution is complete,
 it'll return the function value back to your local context.
 
@@ -84,7 +84,7 @@ it'll return the function value back to your local context.
 val result = example("hello") #!
 ```
 
-As we'll see later, Hype gives you more fine grained control over the execution environment for each
+As we'll see later, Hype gives you more fine-grained control over the execution environment for each
 function. Using an `implicit` value as we did above works in most cases, but the hashbang (`#!`)
 operator also allows you to specify an explicit environment.
 
