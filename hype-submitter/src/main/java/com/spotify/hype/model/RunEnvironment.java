@@ -27,6 +27,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 @AutoMatter
 public interface RunEnvironment {
@@ -47,6 +48,7 @@ public interface RunEnvironment {
   @AutoMatter
   interface YamlBase extends EnvironmentBase {
     Path yamlPath();
+    Optional<String> overrideImage();
   }
 
   static RunEnvironment environment(String image) {
@@ -69,6 +71,20 @@ public interface RunEnvironment {
     return new RunEnvironmentBuilder()
         .base(new YamlBaseBuilder().yamlPath(path).build())
         .build();
+  }
+
+  default RunEnvironment withImageOverride(String image) {
+    if (base() instanceof SimpleBase) {
+      return RunEnvironmentBuilder.from(this)
+          .base(SimpleBaseBuilder.from((SimpleBase) base()).image(image).build())
+          .build();
+    } else if (base() instanceof YamlBase) {
+      return RunEnvironmentBuilder.from(this)
+          .base(YamlBaseBuilder.from((YamlBase) base()).overrideImage(image).build())
+          .build();
+    } else {
+      throw new RuntimeException("Unknown base environment type: " + base().getClass());
+    }
   }
 
   default RunEnvironment withSecret(String name, String mountPath) {

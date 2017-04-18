@@ -253,9 +253,16 @@ public class KubernetesDockerRunner implements DockerRunner {
 
       // ensure image is set
       final Container hypeRunContainer = findHypeRunContainer(pod);
-      if (hypeRunContainer.getImage() == null) {
+      if (hypeRunContainer.getImage() == null && !yamlBase.overrideImage().isPresent()) {
         throw new RuntimeException("Image on " + HYPE_RUN + " container must be set");
       }
+
+      yamlBase.overrideImage().ifPresent(overrideImage -> {
+        if (hypeRunContainer.getImage() != null) {
+          LOG.info("Overriding image {} with {}", hypeRunContainer.getImage(), overrideImage);
+        }
+        hypeRunContainer.setImage(overrideImage);
+      });
 
       return pod;
     }

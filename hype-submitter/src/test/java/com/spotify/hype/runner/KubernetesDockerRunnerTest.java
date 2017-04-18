@@ -50,7 +50,9 @@ import io.fabric8.kubernetes.client.KubernetesClient;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.mockito.Mockito;
 
 public class KubernetesDockerRunnerTest {
@@ -60,6 +62,9 @@ public class KubernetesDockerRunnerTest {
   private static final RunManifest MANIFEST = new RunManifestBuilder()
       .continuation("foobar.bin")
       .build();
+
+  @Rule
+  public ExpectedException expect = ExpectedException.none();
 
   private KubernetesDockerRunner runner;
 
@@ -216,6 +221,35 @@ public class KubernetesDockerRunnerTest {
     ResourceRequirements resources = container.getResources();
     assertThat(resources.getRequests(), hasEntry("cpu", new Quantity("100m")));
     assertThat(resources.getLimits(), hasEntry("memory", new Quantity("1Gi")));
+  }
+
+  @Test
+  public void requiresImageInYaml() throws Exception {
+    RunEnvironment env = fromYaml("/no-image.yaml");
+    expect.expect(RuntimeException.class);
+    expect.expectMessage("Image on " + HYPE_RUN + " container must be set");
+
+    createPod(env);
+  }
+
+  @Test
+  public void overridesImageInYaml() throws Exception {
+    RunEnvironment env = fromYaml("/minimal-pod.yaml")
+        .withImageOverride("override-image");
+    Pod pod = createPod(env);
+
+    Container container = findHypeRunContainer(pod);
+    assertThat(container.getImage(), is("override-image"));
+  }
+
+  @Test
+  public void doesNotRequireImageIfOverriddenYaml() throws Exception {
+    RunEnvironment env = fromYaml("/no-image.yaml")
+        .withImageOverride("override-image");
+    Pod pod = createPod(env);
+
+    Container container = findHypeRunContainer(pod);
+    assertThat(container.getImage(), is("override-image"));
   }
 
   private Pod createPod(RunEnvironment env) {
