@@ -51,6 +51,12 @@ public interface RunEnvironment {
     Optional<String> overrideImage();
   }
 
+  static RunEnvironment get() {
+    return new RunEnvironmentBuilder()
+        .base(new SimpleBaseBuilder().image("NUKEME").build())
+        .build();
+  }
+
   static RunEnvironment environment(String image) {
     return new RunEnvironmentBuilder()
         .base(new SimpleBaseBuilder().image(image).build())

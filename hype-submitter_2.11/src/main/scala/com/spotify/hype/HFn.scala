@@ -1,7 +1,5 @@
 package com.spotify.hype
 
-import com.spotify.hype.model.RunEnvironment
-
 trait HFn[T] extends Serializable {
 
   /**
@@ -15,7 +13,7 @@ trait HFn[T] extends Serializable {
     * @param baseEnv The original environment used for the submission
     * @return an optionally modified environment that will ultimately be used for the submission
     */
-  def env(baseEnv: RunEnvironment): RunEnvironment = baseEnv
+  def image: String = "hype/base-image:1"
 }
 
 object HFn {

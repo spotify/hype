@@ -40,16 +40,6 @@ package object hype {
         dockerCluster(keepContainer, keepTerminationLog, keepVolumes)))
   }
 
-  implicit class HFnOps[T](val hfn: HFn[T]) extends AnyVal {
-    def run(implicit submitter: Submitter, env: RunEnvironment): T = #!
-
-    def #!(implicit submitter: Submitter, baseEnv: RunEnvironment): T =
-      submitter.runOnCluster(hfn.run, hfn.env(baseEnv))
-
-    def #!(env: RunEnvironment)(implicit submitter: Submitter): T =
-      #!(submitter, env)
-  }
-
   implicit def fnToHfn[T](fn: util.Fn[T]): HFn[T] = HFn {
     fn.run()
   }
@@ -57,9 +47,6 @@ package object hype {
   implicit def toHfn[A](fn: () => A): HFn[A] = HFn {
     fn()
   }
-
-  implicit def toHfnOps[A](fn: () => A): HFnOps[A] =
-    HFnOps(toHfn(fn))
 
   implicit def toFn[A](fn: () => A): util.Fn[A] = new util.Fn[A] {
     override def run(): A = fn()
