@@ -4,11 +4,6 @@ import com.spotify.hype.model.ContainerEngineCluster
 
 package object hype {
 
-  object Environment {
-    def apply(image: String): model.RunEnvironment =
-      model.RunEnvironment.environment(image)
-  }
-
   object EnvironmentFromYaml {
     def apply(resourcePath: String): model.RunEnvironment =
       model.RunEnvironment.fromYaml(resourcePath)

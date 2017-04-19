@@ -23,7 +23,6 @@ package com.spotify.hype;
 import static com.spotify.hype.model.ContainerEngineCluster.containerEngineCluster;
 import static com.spotify.hype.model.ResourceRequest.CPU;
 import static com.spotify.hype.model.ResourceRequest.MEMORY;
-import static com.spotify.hype.model.RunEnvironment.environment;
 import static com.spotify.hype.model.VolumeRequest.volumeRequest;
 
 import com.spotify.hype.model.ContainerEngineCluster;
@@ -49,7 +48,8 @@ public class Example {
           .collect(Collectors.toList());
     };
 
-    final RunEnvironment environment = environment("us.gcr.io/datawhere-test/hype-runner:5")
+    String image = "us.gcr.io/datawhere-test/hype-runner:5";
+    final RunEnvironment environment = RunEnvironment.get()
         .withSecret("gcp-key", "/etc/gcloud")
         .withRequest(CPU.of("200m"))
         .withRequest(MEMORY.of("256Mi"));
@@ -57,23 +57,25 @@ public class Example {
     // create a volume request from a predefined storage class with name 'slow'
     final VolumeRequest slow10Gi = volumeRequest("slow", "10Gi");
 
-    final RunEnvironment rwEnv = environment.withMount(slow10Gi.mountReadWrite("/usr/share/volume"));
+    final RunEnvironment rwEnv =
+        environment.withMount(slow10Gi.mountReadWrite("/usr/share/volume"));
     final RunEnvironment roEnv = environment.withMount(slow10Gi.mountReadOnly("/usr/share/volume"));
 
     final ContainerEngineCluster cluster = containerEngineCluster(
         "datawhere-test", "us-east1-d", "hype-test");
 
     try (final Submitter submitter = Submitter.create(args[0], cluster)) {
-      final List<String> ret = submitter.runOnCluster(fn, rwEnv);
+      final List<String> ret = submitter.runOnCluster(fn, rwEnv, image);
       System.out.println("ret = " + ret);
 
       IntStream.range(0, 10)
           .parallel()
-          .forEach(i -> submitter.runOnCluster(fn, roEnv));
+          .forEach(i -> submitter.runOnCluster(fn, roEnv, image));
     }
   }
 
   private static class Record {
+
     final String foo;
     final int bar;
 

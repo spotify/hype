@@ -32,35 +32,13 @@ import java.util.Optional;
 @AutoMatter
 public interface RunEnvironment {
 
-  EnvironmentBase base();
+  Optional<Path> yamlPath();
   List<Secret> secretMounts();
   List<VolumeMount> volumeMounts();
   Map<String, String> resourceRequests();
 
-  interface EnvironmentBase {
-  }
-
-  @AutoMatter
-  interface SimpleBase extends EnvironmentBase {
-    String image();
-  }
-
-  @AutoMatter
-  interface YamlBase extends EnvironmentBase {
-    Path yamlPath();
-    Optional<String> overrideImage();
-  }
-
   static RunEnvironment get() {
-    return new RunEnvironmentBuilder()
-        .base(new SimpleBaseBuilder().image("NUKEME").build())
-        .build();
-  }
-
-  static RunEnvironment environment(String image) {
-    return new RunEnvironmentBuilder()
-        .base(new SimpleBaseBuilder().image(image).build())
-        .build();
+    return new RunEnvironmentBuilder().build();
   }
 
   static RunEnvironment fromYaml(String resourcePath) {
@@ -75,22 +53,8 @@ public interface RunEnvironment {
 
   static RunEnvironment fromYaml(Path path) {
     return new RunEnvironmentBuilder()
-        .base(new YamlBaseBuilder().yamlPath(path).build())
+        .yamlPath(path)
         .build();
-  }
-
-  default RunEnvironment withImageOverride(String image) {
-    if (base() instanceof SimpleBase) {
-      return RunEnvironmentBuilder.from(this)
-          .base(SimpleBaseBuilder.from((SimpleBase) base()).image(image).build())
-          .build();
-    } else if (base() instanceof YamlBase) {
-      return RunEnvironmentBuilder.from(this)
-          .base(YamlBaseBuilder.from((YamlBase) base()).overrideImage(image).build())
-          .build();
-    } else {
-      throw new RuntimeException("Unknown base environment type: " + base().getClass());
-    }
   }
 
   default RunEnvironment withSecret(String name, String mountPath) {

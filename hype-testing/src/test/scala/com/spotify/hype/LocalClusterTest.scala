@@ -16,16 +16,15 @@
  */
 package com.spotify.hype
 
-import com.spotify.hype.model.RunEnvironment
 import org.scalatest.{FlatSpec, Matchers}
 
 import scala.language.postfixOps
 import scala.reflect.io.File
 
-class HypeClusterTest extends FlatSpec with Matchers {
+class LocalClusterTest extends FlatSpec with Matchers {
 
-  private val cluster = TestCluster()
-  private val env = RunEnvironment.get()
+  private val cluster = LocalCluster()
+  private val env = RunEnvironment()
 
   val fooHFn = fnWithTestImage(() => "foobar")
 
@@ -49,9 +48,7 @@ class HypeClusterTest extends FlatSpec with Matchers {
     cluster.submit(readHFn, env.withMount(volume.mountReadOnly("/readFoo"))) shouldBe "foobar in a file"
   }
 
-  private def fnWithTestImage[T](fn: () => T) = new HFn[T] {
-    override def run = fn()
-
-    override def image = s"spotify-hype-testing:${VersionUtil.getVersion}"
+  def fnWithTestImage(fn: () => String) = HFn[String](HFnTest.testImage) {
+    fn()
   }
 }

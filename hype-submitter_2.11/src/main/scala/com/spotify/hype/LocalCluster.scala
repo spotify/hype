@@ -1,8 +1,5 @@
 package com.spotify.hype
 
-/**
-  * TODO: restrict scope to test?
-  */
-case class TestCluster() extends HypeCluster {
+case class LocalCluster() extends HypeCluster {
   override protected def submitter: Submitter = Submitter.createLocal
 }

@@ -68,18 +68,9 @@ public class LocalDockerRunner implements DockerRunner {
   }
 
   private String getImageWithTag(final RunSpec runSpec) {
-    final RunEnvironment.EnvironmentBase base = runSpec.runEnvironment().base();
-    if (base instanceof RunEnvironment.SimpleBase) {
-      final RunEnvironment.SimpleBase simpleBase = (RunEnvironment.SimpleBase) base;
-      return simpleBase.image().contains(":")
-          ? simpleBase.image()
-          : simpleBase.image() + ":latest";
-    } else if (base instanceof RunEnvironment.YamlBase) {
-      throw
-          new UnsupportedOperationException(
-              "Yaml based environment not supported in local mode yet!");
-    }
-    throw new IllegalArgumentException("Illegal type of run environment " + base.toString());
+    return runSpec.image().contains(":")
+           ? runSpec.image()
+           : runSpec.image() + ":latest";
   }
 
   @Override
@@ -93,9 +84,9 @@ public class LocalDockerRunner implements DockerRunner {
       // check if it's needed to pull the image
       // TODO: figure out authentication with private repos
       final List<Image> images = client.listImages();
-      if(images.stream().noneMatch(i ->
+      if (images.stream().noneMatch(i ->
           i.repoTags() != null
-          && i.repoTags().stream().anyMatch(t -> Objects.equals(t, imageWithTag)))){
+          && i.repoTags().stream().anyMatch(t -> Objects.equals(t, imageWithTag)))) {
         LOG.info("Pulling image " + imageWithTag);
         try {
           client.pull(imageWithTag, System.out::println); // blocking
@@ -121,9 +112,10 @@ public class LocalDockerRunner implements DockerRunner {
       // Use user home because Docker Engine daemon has only limited access to on macOS or
       // Windows filesystem
       final Path localTmp = new File(System.getProperty("user.home")).toPath().resolve(".tmp");
-      final Path termLogs = Files.createDirectories(localTmp.resolve("spotify-hype-termination-logs"));
+      final Path termLogs =
+          Files.createDirectories(localTmp.resolve("spotify-hype-termination-logs"));
       final Path terminationLog = Files.createTempFile(termLogs, "termination-log", ".txt");
-      if(!keepTerminationLog) {
+      if (!keepTerminationLog) {
         terminationLog.toFile().deleteOnExit();
       }
       hostConfig.appendBinds(HostConfig.Bind
@@ -158,7 +150,7 @@ public class LocalDockerRunner implements DockerRunner {
       client.startContainer(creation.id());
       LOG.info("Started container {}", creation.id());
       final Optional<URI> uri = blockUntilComplete(creation.id(), terminationLog);
-      if(!keepContainer) {
+      if (!keepContainer) {
         if (Objects.equals(System.getenv("CIRCLECI"), "true")) {
           LOG.info("Running on CircleCi - won't delete container due to " +
                    " https://circleci.com/docs/1.0/docker-btrfs-error/");

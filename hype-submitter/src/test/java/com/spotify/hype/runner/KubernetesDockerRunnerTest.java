@@ -22,7 +22,7 @@ package com.spotify.hype.runner;
 
 import static com.spotify.hype.model.ResourceRequest.CPU;
 import static com.spotify.hype.model.ResourceRequest.MEMORY;
-import static com.spotify.hype.model.RunEnvironment.environment;
+import static com.spotify.hype.model.RunEnvironment.get;
 import static com.spotify.hype.model.RunEnvironment.fromYaml;
 import static com.spotify.hype.runner.KubernetesDockerRunner.EXECUTION_ID;
 import static com.spotify.hype.runner.KubernetesDockerRunner.HYPE_RUN;
@@ -76,17 +76,8 @@ public class KubernetesDockerRunnerTest {
   }
 
   @Test
-  public void setsImage() throws Exception {
-    RunEnvironment env = environment("busybox:1");
-    Pod pod = createPod(env);
-
-    Container container = findHypeRunContainer(pod);
-    assertThat(container.getImage(), is("busybox:1"));
-  }
-
-  @Test
   public void setsManifestAsArgument() throws Exception {
-    RunEnvironment env = environment("busybox:1");
+    RunEnvironment env = get();
     Pod pod = createPod(env);
 
     Container container = findHypeRunContainer(pod);
@@ -104,7 +95,7 @@ public class KubernetesDockerRunnerTest {
 
   @Test
   public void setsHypeExecIdAsEnvVar() throws Exception {
-    RunEnvironment env = environment("busybox:1");
+    RunEnvironment env = get();
     Pod pod = createPod(env);
     String name = pod.getMetadata().getName();
 
@@ -124,7 +115,7 @@ public class KubernetesDockerRunnerTest {
 
   @Test
   public void setsResourceRequests() throws Exception {
-    RunEnvironment env = environment("busybox:1")
+    RunEnvironment env = get()
         .withRequest(CPU.of("250m"))
         .withRequest(MEMORY.of("2Gi"))
         .withRequest("gpu", "2");
@@ -164,7 +155,7 @@ public class KubernetesDockerRunnerTest {
 
   @Test
   public void mountsSecretVolume() throws Exception {
-    RunEnvironment env = environment("busybox:1")
+    RunEnvironment env = get()
         .withSecret(SECRET);
     Pod pod = createPod(env);
 
@@ -214,7 +205,7 @@ public class KubernetesDockerRunnerTest {
     assertThat(pod.getSpec().getRestartPolicy(), is("Never"));
 
     Container container = findHypeRunContainer(pod);
-    assertThat(container.getImage(), is("us.gcr.io/my-project/hype-runner:7"));
+    assertThat(container.getImage(), is("busybox:1"));
     assertThat(container.getImagePullPolicy(), is("Always"));
     assertThat(container.getEnv(), hasItems(envVar("EXAMPLE", "my-env-value")));
 
@@ -223,38 +214,9 @@ public class KubernetesDockerRunnerTest {
     assertThat(resources.getLimits(), hasEntry("memory", new Quantity("1Gi")));
   }
 
-  @Test
-  public void requiresImageInYaml() throws Exception {
-    RunEnvironment env = fromYaml("/no-image.yaml");
-    expect.expect(RuntimeException.class);
-    expect.expectMessage("Image on " + HYPE_RUN + " container must be set");
-
-    createPod(env);
-  }
-
-  @Test
-  public void overridesImageInYaml() throws Exception {
-    RunEnvironment env = fromYaml("/minimal-pod.yaml")
-        .withImageOverride("override-image");
-    Pod pod = createPod(env);
-
-    Container container = findHypeRunContainer(pod);
-    assertThat(container.getImage(), is("override-image"));
-  }
-
-  @Test
-  public void doesNotRequireImageIfOverriddenYaml() throws Exception {
-    RunEnvironment env = fromYaml("/no-image.yaml")
-        .withImageOverride("override-image");
-    Pod pod = createPod(env);
-
-    Container container = findHypeRunContainer(pod);
-    assertThat(container.getImage(), is("override-image"));
-  }
-
   private Pod createPod(RunEnvironment env) {
     StagedContinuation cont = StagedContinuation.stagedContinuation(MANIFEST_PATH, MANIFEST);
-    RunSpec runSpec = RunSpec.runSpec(env, cont);
+    RunSpec runSpec = RunSpec.runSpec(env, cont, "busybox:1");
 
     return runner.createPod(runSpec);
   }

@@ -1,18 +1,16 @@
 package com.spotify
 
 import com.spotify.hype.model.DockerCluster.dockerCluster
-import com.spotify.hype.model.RunEnvironment
 
 import scala.language.implicitConversions
 
 package object hype {
 
-  object Environment {
-    def apply(image: String): model.RunEnvironment =
-      model.RunEnvironment.environment(image)
+  object RunEnvironment {
+    def apply(): model.RunEnvironment = model.RunEnvironment.get()
   }
 
-  object EnvironmentFromYaml {
+  object RunEnvironmentFromYaml {
     def apply(resourcePath: String): model.RunEnvironment =
       model.RunEnvironment.fromYaml(resourcePath)
   }
@@ -40,11 +38,11 @@ package object hype {
         dockerCluster(keepContainer, keepTerminationLog, keepVolumes)))
   }
 
-  implicit def fnToHfn[T](fn: util.Fn[T]): HFn[T] = HFn {
+  implicit def fnToHfn[T](fn: util.Fn[T]): HFn[T] = HFn(HFn.defaultImage) {
     fn.run()
   }
 
-  implicit def toHfn[A](fn: () => A): HFn[A] = HFn {
+  implicit def toHfn[A](fn: () => A): HFn[A] = HFn(HFn.defaultImage) {
     fn()
   }
 

@@ -6,7 +6,6 @@ spec:
 
   containers:
   - name: hype-run
-    image: spotify-hype-testing:${project.version}
     imagePullPolicy: Always
 
     env:

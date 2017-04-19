@@ -1,12 +1,15 @@
 package com.spotify.hype
 
-import org.scalatest.FlatSpec
-import org.scalatest.Matchers
+import org.scalatest.{FlatSpec, Matchers}
+
+object HFnTest {
+  val testImage = s"spotify-hype-testing:${VersionUtil.getVersion}"
+}
 
 class HFnTest extends FlatSpec with Matchers {
 
   "HypeModule" should "capture method arguments" in {
-    def fn(arg: String) = HFn[String] {
+    def fn(arg: String) = HFn[String](HFn.defaultImage) {
       arg + " world"
     }
 
@@ -15,7 +18,7 @@ class HFnTest extends FlatSpec with Matchers {
 
   it should "not evaluate on construction" in {
     var called = false
-    def fn(arg: String) = HFn {
+    def fn(arg: String) = HFn[String](HFn.defaultImage) {
       called = true
       arg + " world"
     }
