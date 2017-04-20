@@ -16,35 +16,38 @@
  */
 package com.spotify.hype
 
-import org.scalatest.FlatSpec
-import org.scalatest.Matchers
+import org.scalatest.{FlatSpec, Matchers}
 
-import scala.language.postfixOps
 import scala.reflect.io.File
 
 class LocalSubmitterTest extends FlatSpec with Matchers {
 
-  private implicit val submitter = Submitter.createLocal
-  private implicit val testEnv = Environment(s"spotify-hype-testing:${VersionUtil.getVersion}")
+  private val submitter = LocalSubmitter()
+  private val env = RunEnvironment()
 
-  "LocalSubmitter" should "work" in {
-    (HFn("foobar") #!) shouldBe "foobar"
+  "TestCluster" should "work" in {
+    val fooHFn = HFn {
+      "foobar"
+    }
+
+    submitter.submit(fooHFn, env) shouldBe "foobar"
   }
 
   it should "support volumes write -> read" in {
-    val volume = VolumeRequest("foo", "10G")
 
-    val writeEnv = testEnv.withMount(volume.mountReadWrite("/foo"))
-    val writeFn = () => {
+    val writeHFn = HFn.withImage(HFnTest.testImage) {
       // side effect in volume
       File("/foo/bar.txt").appendAll("foobar in a file")
       "foobar"
     }
 
-    val readEnv = testEnv.withMount(volume.mountReadOnly("/readFoo"))
-    val readFn = () => File("/readFoo/bar.txt").bufferedReader().readLine()
+    val volume = VolumeRequest("foo", "10G")
+    submitter.submit(writeHFn, env.withMount(volume.mountReadWrite("/foo"))) shouldBe "foobar"
 
-    writeFn #! writeEnv shouldBe "foobar"
-    readFn #! readEnv shouldBe "foobar in a file"
+    val readHFn = HFn.withImage(HFnTest.testImage) {
+      File("/readFoo/bar.txt").bufferedReader().readLine()
+    }
+
+    submitter.submit(readHFn, env.withMount(volume.mountReadOnly("/readFoo"))) shouldBe "foobar in a file"
   }
 }

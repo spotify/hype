@@ -29,13 +29,16 @@ public interface RunSpec {
 
   RunEnvironment runEnvironment();
   StagedContinuation stagedContinuation();
+  String image();
 
   static RunSpec runSpec(
       RunEnvironment runEnvironment,
-      StagedContinuation stagedContinuation) {
+      StagedContinuation stagedContinuation,
+      String image) {
     return new RunSpecBuilder()
         .runEnvironment(runEnvironment)
         .stagedContinuation(stagedContinuation)
+        .image(image)
         .build();
   }
 }

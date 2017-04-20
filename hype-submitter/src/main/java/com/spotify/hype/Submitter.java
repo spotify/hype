@@ -136,12 +136,12 @@ public class Submitter implements Closeable {
     this.runner = DockerRunner.local(dockerClient, cluster);
   }
 
-  public <T> T runOnCluster(Fn<T> fn, RunEnvironment environment) {
+  public <T> T runOnCluster(Fn<T> fn, RunEnvironment environment, String image) {
     // 1. stage
     final StagedContinuation stagedContinuation = stageContinuation(fn);
 
     // 2. submit and wait for k8s pod (returns return value uri, termination log, etc)
-    final RunSpec runSpec = runSpec(environment, stagedContinuation);
+    final RunSpec runSpec = runSpec(environment, stagedContinuation, image);
 
     LOG.info("Submitting {} to {}", stagedContinuation.manifestPath().toUri(), environment);
     final Optional<URI> returnUri = runner.run(runSpec);

@@ -6,7 +6,6 @@ spec:
 
   containers:
   - name: hype-run
-    image: us.gcr.io/my-project/hype-runner:7
     imagePullPolicy: Always
 
     env:

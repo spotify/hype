@@ -1,7 +1,5 @@
 package com.spotify.hype
 
-import com.spotify.hype.model.RunEnvironment
-
 trait HFn[T] extends Serializable {
 
   /**
@@ -10,16 +8,22 @@ trait HFn[T] extends Serializable {
   def run: T
 
   /**
-    * Override this to allow the function to modify the environment it is about to be submitted to.
-    *
-    * @param baseEnv The original environment used for the submission
-    * @return an optionally modified environment that will ultimately be used for the submission
+    * Override this to allow the function to modify the container it is about to be submitted to.
     */
-  def env(baseEnv: RunEnvironment): RunEnvironment = baseEnv
+  def image: String = HFn.defaultImage
 }
 
 object HFn {
+
+  val defaultImage = "spotify/hype:1"
+
   def apply[T](f: => T) = new HFn[T] {
     def run: T = f
+  }
+
+  def withImage[T](img: String)(f: => T) = new HFn[T] {
+    def run: T = f
+
+    override def image: String = img
   }
 }
