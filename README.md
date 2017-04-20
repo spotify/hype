@@ -241,10 +241,9 @@ def read = HFn[String] {
   s"cat $mount/word" !!
 }
 
-val cluster = ContainerEngineCluster("gcp-project-id", "gce-zone-id", "gke-cluster-id")
-val env = Environment("gcr.io/gcp-project-id/env-image")
-implicit val submitter = GkeSubmitter("gs://my-staging-bucket", cluster)
+implicit val submitter = GkeSubmitter("gcp-project-id", "gce-zone-id", "gke-cluster-id", "gs://my-staging-bucket")
 
+val env = RunEnvironment()
 val readWriteEnv = env.withMount(ssd10Gi.mountReadWrite(mount))
 val readOnlyEnv = env.withMount(ssd10Gi.mountReadOnly(mount))
 
