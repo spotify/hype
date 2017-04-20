@@ -48,13 +48,10 @@ See example [`Dockerfile`](hype-docker/Dockerfile)
 
 ## Run functions
 
-In order to run functions on the cluster, you'll have to set up an `implicit` `Submitter` value.
+In order to run functions on the cluster, you'll have to set up a `Submitter` value.
 The submitter encapsulates "where" to submit your functions.
-
 ```scala
-// Use a Google Cloud Container Engine managed cluster
-val cluster = ContainerEngineCluster("gcp-project-id", "gce-zone-id", "gke-cluster-id")
-implicit val submitter = GkeSubmitter("gs://my-staging-bucket", cluster)
+val submitter = GkeSubmitter("gcp-project-id", "gce-zone-id", "gke-cluster-id", "gs://my-staging-bucket")
 ```
 
 For testing, where you might want to run on a local Docker daemon, use `LocalSubmitter(...)`.
@@ -68,28 +65,17 @@ def example(arg: String) = HFn[String] {
 }
 ```
 
-Now we'll have to define the environment we want this function to run in. This is where we'll
-reference the Docker image we built earlier. The environment value can be declared `implicit`,
-but this is not required as it can explicitly be referenced when submitting functions.
+Now we'll have to define the environment we want this function to run in.
 
 ```scala
-implicit val env = Environment("gcr.io/gcp-project-id/env-image")
+val env = RunEnvironment()
 ```
 
-Finally, use the `#!` (hashbang) operator to execute an `HFn[T]` in a given environment. It will
-use the `Submitter` and `RunEnvironment` which should be in scope. When execution is complete,
-it'll return the function value back to your local context.
+Finally, use use the `Submitter` and `RunEnvironment` to execute an `HFn[T]`.
+When execution is complete, it'll return the function value back to your local context.
 
 ```scala
-val result = example("hello") #!
-```
-
-As we'll see later, Hype gives you more fine-grained control over the execution environment for each
-function. Using an `implicit` value as we did above works in most cases, but the hashbang (`#!`)
-operator also allows you to specify an explicit environment.
-
-```scala
-val result = example("hello") #! env.withRequest("cpu", "750m")
+val result = submitter.submit(example("hello"), env.withRequest("cpu", "750m"))
 ```
 
 ## Full example
@@ -114,15 +100,11 @@ def extractEnv(cmd: String) = HFn[Res] {
   Res(cmdOutput, mounts, vars)
 }
 
-// Use a Google Cloud Container Engine managed cluster
-val cluster = ContainerEngineCluster("gcp-project-id", "gce-zone-id", "gke-cluster-id")
-
-implicit val submitter = GkeSubmitter("gs://my-staging-bucket", cluster)
-implicit val env = Environment("gcr.io/gcp-project-id/env-image")
+val submitter = GkeSubmitter("gcp-project-id", "gce-zone-id", "gke-cluster-id", "gs://my-staging-bucket")
+val env = RunEnvironment()
     .withSecret("gcp-key", "/etc/gcloud") // a pre-created k8s secret volume named "gcp-key"
 
-// The hashbang operator runs this using the in-scope Submitter
-val res = extractEnv("uname -a") #!
+val res = submitter.submit(extractEnv("uname -a"), env)
 
 println(res.cmdOutput)
 println(res.mounts)
@@ -159,6 +141,39 @@ docker container while running on the cluster. Here's the output:
 [info] EnvVar(JAVA_VERSION,8u121)
 [info] EnvVar(KUBERNETES_SERVICE_HOST,xx.xx.xx.xx)
 ...
+```
+
+## Leveraging implicits
+
+In order to save some keystrokes, you can use our `implicit` operators:
+```scala
+import com.spotify.hype.magic._
+```
+
+Now you can set up an `implicit` `Submitter` value.
+```scala
+implicit val submitter = GkeSubmitter("gcp-project-id", "gce-zone-id", "gke-cluster-id", "gs://my-staging-bucket")
+```
+
+The environment value can also be declared `implicit`,
+but this is not required as it can explicitly be referenced when submitting functions.
+
+```scala
+implicit val env = RunEnvironment().withSecret("gcp-key", "/etc/gcloud")
+```
+
+Finally, use the `#!` (hashbang) operator to execute an `HFn[T]` in a given environment. It will
+use the `Submitter` and `RunEnvironment` which should be in scope.
+
+```scala
+val result = example("hello") #!
+```
+
+Using an `implicit` value as we did above works in most cases, but the hashbang (`#!`)
+operator also allows you to specify an explicit environment.
+
+```scala
+val result = example("hello") #! env.withRequest("cpu", "750m")
 ```
 
 # Process overview
@@ -200,7 +215,7 @@ We can then request volumes from this StorageClass using the Hype API:
 
 ```scala
 import sys.process._
-import com.spotify.hype._
+import com.spotify.hype.magic._
 
 // Create a 10Gi volume from the 'gce-ssd-pd' storage class
 val ssd10Gi = VolumeRequest("gce-ssd-pd", "10Gi")
