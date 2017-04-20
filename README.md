@@ -227,9 +227,18 @@ We can then request volumes from this StorageClass using the Hype API:
 import sys.process._
 import com.spotify.hype.magic._
 
+implicit val submitter = GkeSubmitter("gcp-project-id",
+                                      "gce-zone-id",
+                                      "gke-cluster-id",
+                                      "gs://my-staging-bucket")
+
 // Create a 10Gi volume from the 'gce-ssd-pd' storage class
 val ssd10Gi = VolumeRequest("gce-ssd-pd", "10Gi")
 val mount = "/usr/share/volume" 
+
+val env = RunEnvironment()
+val readWriteEnv = env.withMount(ssd10Gi.mountReadWrite(mount))
+val readOnlyEnv = env.withMount(ssd10Gi.mountReadOnly(mount))
 
 def write = HFn[Int] {
   // get a random word and store it in the volume
@@ -240,12 +249,6 @@ def read = HFn[String] {
   // read the word file
   s"cat $mount/word" !!
 }
-
-implicit val submitter = GkeSubmitter("gcp-project-id", "gce-zone-id", "gke-cluster-id", "gs://my-staging-bucket")
-
-val env = RunEnvironment()
-val readWriteEnv = env.withMount(ssd10Gi.mountReadWrite(mount))
-val readOnlyEnv = env.withMount(ssd10Gi.mountReadOnly(mount))
 
 // Write to the volume
 write #! readWriteEnv
