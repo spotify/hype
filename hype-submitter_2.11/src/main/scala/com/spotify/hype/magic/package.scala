@@ -10,16 +10,11 @@ import scala.language.implicitConversions
 package object magic {
 
   implicit class HFnOps[T](val hfn: HFn[T]) extends AnyVal {
-    def run(implicit submitter: Submitter, env: RunEnvironment): T = #!
+    def #!(implicit submitter: HypeSubmitter, env: RunEnvironment): T = submitter.submit(hfn, env)
 
-    def #!(implicit submitter: Submitter, env: RunEnvironment): T =
-      submitter.runOnCluster(hfn.run, env, hfn.image)
-
-    def #!(env: RunEnvironment)(implicit submitter: Submitter): T =
-      #!(submitter, env)
+    def #!(env: RunEnvironment)(implicit submitter: HypeSubmitter): T = #!(submitter, env)
   }
 
   implicit def toHfnOps[A](fn: () => A): HFnOps[A] =
     HFnOps(toHfn(fn))
-
 }

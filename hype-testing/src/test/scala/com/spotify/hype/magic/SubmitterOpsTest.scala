@@ -16,7 +16,7 @@
  */
 package com.spotify.hype.magic
 
-import com.spotify.hype.{HFn, HFnTest, Submitter, RunEnvironment, VolumeRequest}
+import com.spotify.hype.{HFn, HFnTest, LocalSubmitter, RunEnvironment, VolumeRequest}
 import org.scalatest.{FlatSpec, Matchers}
 
 import scala.language.postfixOps
@@ -24,7 +24,7 @@ import scala.sys.process._
 
 class SubmitterOpsTest extends FlatSpec with Matchers {
 
-  private implicit val submitter = Submitter.createLocal
+  private implicit val submitter = LocalSubmitter()
 
   "Submitter ops" should "do #!" in {
     implicit val env = RunEnvironment()

@@ -14,6 +14,7 @@ A library for seamlessly executing arbitrary JVM closures in [Docker] containers
   * [Build environment images](#build-environment-images)
   * [Run functions](#run-functions)
   * [Full example](#full-example)
+  * [Leveraging implicits](#leveraging-implicits)
 - [Process overview](#process-overview)
 - [Persistent volumes](#persistent-volumes)
 - [Environment Pod from YAML](#environment-pod-from-yaml)
@@ -61,6 +62,15 @@ Writing functions that can be executed with Hype is simple, just wrap them up as
 
 ```scala
 def example(arg: String) = HFn[String] {
+  arg + " world!"
+}
+```
+
+In the previous example, the default Hype Docker image (`spotify/hype`) is used. If you wish to use
+your own image, you can easily do so:
+
+```scala
+def example(arg: String) = HFn.withImage("us.gcr.io/my-image:42") {
   arg + " world!"
 }
 ```
@@ -255,15 +265,15 @@ passing values from function calls as arguments to other functions.
 
 # Environment Pod from YAML
 
-Even though the `Environment(<image>)` value can be convenient for simple cases, sometimes more
-control over the Kubernetes Pod is desired. For these cases a regular Pod YAML file can be used
-as a base for the `RunEnvironment`. Hype will still manage any used Volume Claims and mounts, but
-will leave all other details as you've specified them.
+Sometimes more control over the Kubernetes Pod is desired. For these cases a regular Pod YAML file
+can be used as a base for the `RunEnvironment`. Hype will still manage any used Volume Claims and
+mounts, but will leave all other details as you've specified them.
 
-Hype will expect at least these fields to be specified:
+Hype will expect at least this field to be specified:
 
 - `spec.containers[name:hype-run]` - There must at least be a container named `hype-run`
-- `spec.containers[name:hype-run].image`  - The container must have an image specified
+
+Please note that the image field should *not* bet set (Hype requires each module to define its image).
 
 _Hype will override the `spec.containers[name:hype-run].args` field, so don't set it._
 
@@ -278,7 +288,6 @@ spec:
 
   containers:
   - name: hype-run
-    image: us.gcr.io/my-project/hype-runner:7
     imagePullPolicy: Always # pull the image on each run
 
     env: # additional environment variables
@@ -292,7 +301,7 @@ set in the YAML file.
 Then simply load your `RunEnvironment` through
 
 ```scala
-val env = EnvironmentFromYaml("/pod.yaml")
+val env = RunEnvironmentFromYaml("/pod.yaml")
 ```
 
 ---

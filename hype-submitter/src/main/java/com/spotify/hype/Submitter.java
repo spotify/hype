@@ -163,7 +163,7 @@ public class Submitter implements Closeable {
 
       return returnValue;
     } else {
-      throw new RuntimeException("Failed to environment return value");
+      throw new RuntimeException("Failed to get return value");
     }
   }
 

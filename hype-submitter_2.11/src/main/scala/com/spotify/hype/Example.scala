@@ -27,15 +27,12 @@ private object Example {
     val slow10Gi = volumeRequest("slow", "10Gi")
 
     val submitter = GkeSubmitter("datawhere-test", "us-east1-d", "hype-test", "gs://hype-test/staging")
-    try {
-      val ret = submitter.submit(fn, env.withMount(slow10Gi.mountReadWrite("/usr/share/volume")))
-      println(ret)
 
-      for (i <- (0 to 10).par) {
-        submitter.submit(fn, env.withMount(slow10Gi.mountReadOnly("/usr/share/volume")))
-      }
-    } finally {
-      submitter.close()
+    val ret = submitter.submit(fn, env.withMount(slow10Gi.mountReadWrite("/usr/share/volume")))
+    println(ret)
+
+    for (i <- (0 to 10).par) {
+      submitter.submit(fn, env.withMount(slow10Gi.mountReadOnly("/usr/share/volume")))
     }
   }
 }
