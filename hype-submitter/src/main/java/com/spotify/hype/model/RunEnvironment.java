@@ -37,7 +37,7 @@ public interface RunEnvironment {
   List<VolumeMount> volumeMounts();
   Map<String, String> resourceRequests();
 
-  static RunEnvironment get() {
+  static RunEnvironment environment() {
     return new RunEnvironmentBuilder().build();
   }
 

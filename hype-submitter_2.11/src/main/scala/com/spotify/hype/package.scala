@@ -7,7 +7,7 @@ import scala.language.implicitConversions
 package object hype {
 
   object RunEnvironment {
-    def apply(): model.RunEnvironment = model.RunEnvironment.get()
+    def apply(): model.RunEnvironment = model.RunEnvironment.environment()
   }
 
   object RunEnvironmentFromYaml {
@@ -25,18 +25,18 @@ package object hype {
       model.ContainerEngineCluster.containerEngineCluster(project, zone, cluster)
   }
 
-  object GkeSubmitter {
-    def apply(stagingLocation: String, cluster: model.ContainerEngineCluster): Submitter =
-      setupShutdown(Submitter.create(stagingLocation, cluster))
-  }
-
-  object LocalSubmitter {
-    def apply(keepContainer: Boolean = false,
-              keepTerminationLog: Boolean = false,
-              keepVolumes: Boolean = false): Submitter =
-      setupShutdown(Submitter.createLocal(
-        dockerCluster(keepContainer, keepTerminationLog, keepVolumes)))
-  }
+//  object GkeSubmitter {
+//    def apply(stagingLocation: String, cluster: model.ContainerEngineCluster): Submitter =
+//      setupShutdown(Submitter.create(stagingLocation, cluster))
+//  }
+//
+//  object LocalSubmitter {
+//    def apply(keepContainer: Boolean = false,
+//              keepTerminationLog: Boolean = false,
+//              keepVolumes: Boolean = false): Submitter =
+//      setupShutdown(Submitter.createLocal(
+//        dockerCluster(keepContainer, keepTerminationLog, keepVolumes)))
+//  }
 
   implicit def fnToHfn[T](fn: util.Fn[T]): HFn[T] = HFn(fn.run())
 

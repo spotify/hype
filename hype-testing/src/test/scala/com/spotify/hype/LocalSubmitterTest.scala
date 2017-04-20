@@ -20,9 +20,9 @@ import org.scalatest.{FlatSpec, Matchers}
 
 import scala.reflect.io.File
 
-class LocalClusterTest extends FlatSpec with Matchers {
+class LocalSubmitterTest extends FlatSpec with Matchers {
 
-  private val cluster = LocalCluster()
+  private val submitter = LocalSubmitter()
   private val env = RunEnvironment()
 
   "TestCluster" should "work" in {
@@ -30,7 +30,7 @@ class LocalClusterTest extends FlatSpec with Matchers {
       "foobar"
     }
 
-    cluster.submit(fooHFn, env) shouldBe "foobar"
+    submitter.submit(fooHFn, env) shouldBe "foobar"
   }
 
   it should "support volumes write -> read" in {
@@ -42,12 +42,12 @@ class LocalClusterTest extends FlatSpec with Matchers {
     }
 
     val volume = VolumeRequest("foo", "10G")
-    cluster.submit(writeHFn, env.withMount(volume.mountReadWrite("/foo"))) shouldBe "foobar"
+    submitter.submit(writeHFn, env.withMount(volume.mountReadWrite("/foo"))) shouldBe "foobar"
 
     val readHFn = HFn.withImage(HFnTest.testImage) {
       File("/readFoo/bar.txt").bufferedReader().readLine()
     }
 
-    cluster.submit(readHFn, env.withMount(volume.mountReadOnly("/readFoo"))) shouldBe "foobar in a file"
+    submitter.submit(readHFn, env.withMount(volume.mountReadOnly("/readFoo"))) shouldBe "foobar in a file"
   }
 }

@@ -49,7 +49,7 @@ public class Example {
     };
 
     String image = "spotify/hype";
-    final RunEnvironment environment = RunEnvironment.get()
+    final RunEnvironment environment = RunEnvironment.environment()
         .withSecret("gcp-key", "/etc/gcloud")
         .withRequest(CPU.of("200m"))
         .withRequest(MEMORY.of("256Mi"));

@@ -31,7 +31,7 @@ public class RunEnvironmentTest {
 
   @Test
   public void overrideResourceRequestsForSame() throws Exception {
-    RunEnvironment env = RunEnvironment.get()
+    RunEnvironment env = RunEnvironment.environment()
         .withRequest(CPU.of("1"))
         .withRequest(CPU.of("7"));
 

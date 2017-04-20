@@ -67,17 +67,11 @@ public class LocalDockerRunner implements DockerRunner {
     this.keepVolumes = keepVolumes;
   }
 
-  private String getImageWithTag(final RunSpec runSpec) {
-    return runSpec.image().contains(":")
-           ? runSpec.image()
-           : runSpec.image() + ":latest";
-  }
-
   @Override
   public Optional<URI> run(final RunSpec runSpec) {
     final RunEnvironment env = runSpec.runEnvironment();
     final StagedContinuation stagedContinuation = runSpec.stagedContinuation();
-    final String imageWithTag = getImageWithTag(runSpec);
+    final String imageWithTag = runSpec.image();
 
     final ContainerCreation creation;
     try {

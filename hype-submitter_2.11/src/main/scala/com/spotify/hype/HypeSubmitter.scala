@@ -2,7 +2,7 @@ package com.spotify.hype
 
 import com.spotify.hype.model.RunEnvironment
 
-trait HypeCluster {
+trait HypeSubmitter {
 
   protected def submitter: Submitter
 

@@ -15,7 +15,7 @@ trait HFn[T] extends Serializable {
 
 object HFn {
 
-  val defaultImage = "spotify/hype"
+  val defaultImage = "spotify/hype:1"
 
   def apply[T](f: => T) = new HFn[T] {
     def run: T = f

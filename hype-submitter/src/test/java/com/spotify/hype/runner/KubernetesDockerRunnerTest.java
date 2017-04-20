@@ -22,7 +22,7 @@ package com.spotify.hype.runner;
 
 import static com.spotify.hype.model.ResourceRequest.CPU;
 import static com.spotify.hype.model.ResourceRequest.MEMORY;
-import static com.spotify.hype.model.RunEnvironment.get;
+import static com.spotify.hype.model.RunEnvironment.environment;
 import static com.spotify.hype.model.RunEnvironment.fromYaml;
 import static com.spotify.hype.runner.KubernetesDockerRunner.EXECUTION_ID;
 import static com.spotify.hype.runner.KubernetesDockerRunner.HYPE_RUN;
@@ -77,7 +77,7 @@ public class KubernetesDockerRunnerTest {
 
   @Test
   public void setsManifestAsArgument() throws Exception {
-    RunEnvironment env = get();
+    RunEnvironment env = environment();
     Pod pod = createPod(env);
 
     Container container = findHypeRunContainer(pod);
@@ -95,7 +95,7 @@ public class KubernetesDockerRunnerTest {
 
   @Test
   public void setsHypeExecIdAsEnvVar() throws Exception {
-    RunEnvironment env = get();
+    RunEnvironment env = environment();
     Pod pod = createPod(env);
     String name = pod.getMetadata().getName();
 
@@ -115,7 +115,7 @@ public class KubernetesDockerRunnerTest {
 
   @Test
   public void setsResourceRequests() throws Exception {
-    RunEnvironment env = get()
+    RunEnvironment env = environment()
         .withRequest(CPU.of("250m"))
         .withRequest(MEMORY.of("2Gi"))
         .withRequest("gpu", "2");
@@ -153,9 +153,15 @@ public class KubernetesDockerRunnerTest {
     assertThat(resources.getRequests(), hasEntry("cpu", new Quantity("250m")));
   }
 
+  @Test(expected=RuntimeException.class)
+  public void forbidImageInYaml() throws Exception {
+    RunEnvironment env = fromYaml("/with-image.yaml");
+    Pod pod = createPod(env);
+  }
+
   @Test
   public void mountsSecretVolume() throws Exception {
-    RunEnvironment env = get()
+    RunEnvironment env = environment()
         .withSecret(SECRET);
     Pod pod = createPod(env);
 
