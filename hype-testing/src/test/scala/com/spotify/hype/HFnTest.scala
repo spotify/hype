@@ -9,7 +9,7 @@ object HFnTest {
 class HFnTest extends FlatSpec with Matchers {
 
   "HypeModule" should "capture method arguments" in {
-    def fn(arg: String) = HFn[String](HFn.defaultImage) {
+    def fn(arg: String) = HFn[String] {
       arg + " world"
     }
 
@@ -18,7 +18,7 @@ class HFnTest extends FlatSpec with Matchers {
 
   it should "not evaluate on construction" in {
     var called = false
-    def fn(arg: String) = HFn[String](HFn.defaultImage) {
+    def fn(arg: String) = HFn[String] {
       called = true
       arg + " world"
     }

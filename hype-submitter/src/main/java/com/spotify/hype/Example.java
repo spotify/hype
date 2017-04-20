@@ -48,7 +48,7 @@ public class Example {
           .collect(Collectors.toList());
     };
 
-    String image = "us.gcr.io/datawhere-test/hype-runner:5";
+    String image = "spotify/hype";
     final RunEnvironment environment = RunEnvironment.get()
         .withSecret("gcp-key", "/etc/gcloud")
         .withRequest(CPU.of("200m"))

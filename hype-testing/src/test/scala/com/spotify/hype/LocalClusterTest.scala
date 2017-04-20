@@ -18,7 +18,6 @@ package com.spotify.hype
 
 import org.scalatest.{FlatSpec, Matchers}
 
-import scala.language.postfixOps
 import scala.reflect.io.File
 
 class LocalClusterTest extends FlatSpec with Matchers {
@@ -26,29 +25,29 @@ class LocalClusterTest extends FlatSpec with Matchers {
   private val cluster = LocalCluster()
   private val env = RunEnvironment()
 
-  val fooHFn = fnWithTestImage(() => "foobar")
-
   "TestCluster" should "work" in {
+    val fooHFn = HFn {
+      "foobar"
+    }
+
     cluster.submit(fooHFn, env) shouldBe "foobar"
   }
 
   it should "support volumes write -> read" in {
 
-    val writeHFn = fnWithTestImage(() => {
+    val writeHFn = HFn.withImage(HFnTest.testImage) {
       // side effect in volume
       File("/foo/bar.txt").appendAll("foobar in a file")
       "foobar"
-    })
+    }
 
     val volume = VolumeRequest("foo", "10G")
     cluster.submit(writeHFn, env.withMount(volume.mountReadWrite("/foo"))) shouldBe "foobar"
 
-    val readHFn = fnWithTestImage(() => File("/readFoo/bar.txt").bufferedReader().readLine())
+    val readHFn = HFn.withImage(HFnTest.testImage) {
+      File("/readFoo/bar.txt").bufferedReader().readLine()
+    }
 
     cluster.submit(readHFn, env.withMount(volume.mountReadOnly("/readFoo"))) shouldBe "foobar in a file"
-  }
-
-  def fnWithTestImage(fn: () => String) = HFn[String](HFnTest.testImage) {
-    fn()
   }
 }

@@ -1,6 +1,5 @@
 package com.spotify.hype
 
-
 trait HFn[T] extends Serializable {
 
   /**
@@ -16,11 +15,15 @@ trait HFn[T] extends Serializable {
 
 object HFn {
 
-  val defaultImage = "us.gcr.io/datawhere-test/hype-runner:5"
+  val defaultImage = "spotify/hype"
 
-  def apply[T](img: String)(f: => T) = new HFn[T] {
+  def apply[T](f: => T) = new HFn[T] {
+    def run: T = f
+  }
+
+  def withImage[T](img: String)(f: => T) = new HFn[T] {
     def run: T = f
 
-    override def image = img
+    override def image: String = img
   }
 }

@@ -38,13 +38,9 @@ package object hype {
         dockerCluster(keepContainer, keepTerminationLog, keepVolumes)))
   }
 
-  implicit def fnToHfn[T](fn: util.Fn[T]): HFn[T] = HFn(HFn.defaultImage) {
-    fn.run()
-  }
+  implicit def fnToHfn[T](fn: util.Fn[T]): HFn[T] = HFn(fn.run())
 
-  implicit def toHfn[A](fn: () => A): HFn[A] = HFn(HFn.defaultImage) {
-    fn()
-  }
+  implicit def toHfn[A](fn: () => A): HFn[A] = HFn(fn())
 
   implicit def toFn[A](fn: () => A): util.Fn[A] = new util.Fn[A] {
     override def run(): A = fn()

@@ -16,8 +16,7 @@
  */
 package com.spotify.hype.magic
 
-import com.spotify.hype.model.VolumeRequest
-import com.spotify.hype.{HFn, HFnTest, Submitter, RunEnvironment => RunEnv, VolumeRequest => VRequest}
+import com.spotify.hype.{HFn, HFnTest, Submitter, RunEnvironment, VolumeRequest}
 import org.scalatest.{FlatSpec, Matchers}
 
 import scala.language.postfixOps
@@ -28,43 +27,33 @@ class SubmitterOpsTest extends FlatSpec with Matchers {
   private implicit val submitter = Submitter.createLocal
 
   "Submitter ops" should "do #!" in {
-    implicit val env = RunEnv()
+    implicit val env = RunEnvironment()
 
     (getEnv("HYPE_ENV") #!) shouldBe "testing"
   }
 
-  case class getEnv(name: String) extends HFn[String] {
-    def run = System.getenv(name)
-
-    override def image = HFnTest.testImage
+  def getEnv(name: String): HFn[String] = HFn.withImage(HFnTest.testImage) {
+    System.getenv(name)
   }
 
   it should "support explicit env" in {
-    val explicitEnv = RunEnv()
+    val volume = VolumeRequest("slow", "1G")
+    val explicitEnv = RunEnvironment()
+    val rwEnv = explicitEnv.withMount(volume.mountReadWrite("/foo"))
+    val roEnv = explicitEnv.withMount(volume.mountReadOnly("/readFoo"))
 
-    val volume = VRequest("slow", "1G")
-
-    val write = Write(volume, "foobar in a file")
-    val read = Read(volume)
-
-    (write #! explicitEnv.withMount(volume.mountReadWrite("/foo"))) shouldBe "foobar"
-    (read #! explicitEnv.withMount(volume.mountReadOnly("/readFoo"))) shouldBe "foobar in a file"
+    (write("foobar in a file") #! rwEnv) shouldBe "foobar"
+    (read #! roEnv) shouldBe "foobar in a file"
   }
 
-  case class Write(volume: VolumeRequest, text: String) extends HFn[String] {
-    def run: String = {
-      // side effect in volume
-      s"echo -n $text" #> "tee /foo/bar.txt" !
+  def write(text: String): HFn[String] = HFn {
+    // side effect in volume
+    s"echo -n $text" #> "tee /foo/bar.txt" !
 
-      "foobar"
-    }
-
-    override def image = HFnTest.testImage
+    "foobar"
   }
 
-  case class Read(volume: VolumeRequest) extends HFn[String] {
-    def run: String = ("cat /readFoo/bar.txt" !!).trim
-
-    override def image = HFnTest.testImage
+  def read: HFn[String] = HFn {
+    ("cat /readFoo/bar.txt" !!).trim
   }
 }

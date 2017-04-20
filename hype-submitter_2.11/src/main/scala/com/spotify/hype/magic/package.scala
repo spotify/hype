@@ -2,6 +2,8 @@ package com.spotify.hype
 
 import com.spotify.hype.model.RunEnvironment
 
+import scala.language.implicitConversions
+
 /**
   * https://open.spotify.com/track/500h8jAdr7LvzzXlm1qxtK
   */
