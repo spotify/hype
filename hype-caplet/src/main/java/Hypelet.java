@@ -30,7 +30,11 @@ import static java.util.Collections.emptyMap;
 import com.google.common.collect.Sets;
 import com.spotify.hype.gcs.ManifestLoader;
 import com.spotify.hype.gcs.RunManifest;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.PrintStream;
 import java.net.URI;
 import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
@@ -66,6 +70,8 @@ public class Hypelet extends Capsule {
   private static final String BINARY = "application/octet-stream";
   private static final String TERMINATION_LOG = "/dev/termination-log";
   private static final String HYPE_EXECUTION_ID = "HYPE_EXECUTION_ID";
+  private static final String SYSTEM_OUT_LOG = "/hype/log/out.log";
+  private static final String SYSTEM_ERR_LOG = "/hype/log/err.log";
 
   private final List<Path> downloadedJars = new ArrayList<>();
 
@@ -85,6 +91,17 @@ public class Hypelet extends Capsule {
 
     if (args.size() < 1) {
       throw new IllegalArgumentException("Usage: <run-manifest-uri>");
+    }
+
+    try {
+      final FileOutputStream outFile = new FileOutputStream(new File(SYSTEM_OUT_LOG), true);
+      final PrintStream outLog = new PrintStream(outFile);
+      final FileOutputStream errFile = new FileOutputStream(new File(SYSTEM_ERR_LOG), true);
+      final PrintStream errLog = new PrintStream(errFile);
+      System.setOut(new TeePrintStream(System.out, outLog));
+      System.setErr(new TeePrintStream(System.err, errLog));
+    } catch (FileNotFoundException e) {
+      throw new RuntimeException(e);
     }
 
     System.out.println("=== HYPE RUN CAPSULE (v" + getVersion() + ") ===");
