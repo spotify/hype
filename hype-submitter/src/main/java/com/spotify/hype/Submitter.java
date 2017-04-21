@@ -37,6 +37,7 @@ import com.spotify.hype.gcs.StagingUtil;
 import com.spotify.hype.gcs.StagingUtil.StagedPackage;
 import com.spotify.hype.model.ContainerEngineCluster;
 import com.spotify.hype.model.DockerCluster;
+import com.spotify.hype.model.LoggingSidecar;
 import com.spotify.hype.model.RunEnvironment;
 import com.spotify.hype.model.StagedContinuation;
 import com.spotify.hype.runner.DockerRunner;
@@ -136,12 +137,21 @@ public class Submitter implements Closeable {
     this.runner = DockerRunner.local(dockerClient, cluster);
   }
 
-  public <T> T runOnCluster(Fn<T> fn, RunEnvironment environment, String image) {
+  public <T> T runOnCluster(Fn<T> fn,
+                            RunEnvironment environment,
+                            String image) {
+    return runOnCluster(fn, environment, image, null);
+  }
+
+  public <T> T runOnCluster(Fn<T> fn,
+                            RunEnvironment environment,
+                            String image,
+                            LoggingSidecar loggingSidecar) {
     // 1. stage
     final StagedContinuation stagedContinuation = stageContinuation(fn);
 
     // 2. submit and wait for k8s pod (returns return value uri, termination log, etc)
-    final RunSpec runSpec = runSpec(environment, stagedContinuation, image);
+    final RunSpec runSpec = runSpec(environment, stagedContinuation, image, loggingSidecar);
 
     LOG.info("Submitting {} to {}", stagedContinuation.manifestPath().toUri(), environment);
     final Optional<URI> returnUri = runner.run(runSpec);

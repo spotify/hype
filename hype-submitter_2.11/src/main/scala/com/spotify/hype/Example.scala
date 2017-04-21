@@ -6,7 +6,6 @@ import com.spotify.hype.model.VolumeRequest._
 import scala.collection.JavaConverters._
 
 private object Example {
-
   def main(args: Array[String]): Unit = {
 
     val env = RunEnvironment()
@@ -27,12 +26,14 @@ private object Example {
     val slow10Gi = volumeRequest("slow", "10Gi")
 
     val submitter = GkeSubmitter("datawhere-test", "us-east1-d", "hype-test", "gs://hype-test/staging")
+    val loggingSidecar = LoggingSidecar("us.gcr.io/datawhere-test/hype-log-slack:1")
 
-    val ret = submitter.submit(fn, env.withMount(slow10Gi.mountReadWrite("/usr/share/volume")))
+    val ret = submitter.submit(fn, env.withMount(slow10Gi.mountReadWrite("/usr/share/volume")), loggingSidecar)
     println(ret)
 
     for (i <- (0 to 10).par) {
       submitter.submit(fn, env.withMount(slow10Gi.mountReadOnly("/usr/share/volume")))
     }
   }
+
 }

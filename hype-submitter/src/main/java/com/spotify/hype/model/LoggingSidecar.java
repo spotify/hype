@@ -1,9 +1,9 @@
-/*-
+/*
  * -\-\-
- * hype-submitter
+ * hype
  * --
  * Copyright (C) 2016 - 2017 Spotify AB
- * --
+ *  --
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -18,33 +18,23 @@
  * -/-/-
  */
 
-package com.spotify.hype.runner;
+package com.spotify.hype.model;
 
-import com.spotify.hype.model.LoggingSidecar;
-import com.spotify.hype.model.RunEnvironment;
-import com.spotify.hype.model.StagedContinuation;
+
 import io.norberg.automatter.AutoMatter;
-import javax.annotation.Nullable;
+import java.util.List;
 
 @AutoMatter
-public interface RunSpec {
+public interface LoggingSidecar {
 
-  RunEnvironment runEnvironment();
-  StagedContinuation stagedContinuation();
   String image();
-  @Nullable
-  LoggingSidecar loggingSidecar();
+  List<String> args();
 
-  static RunSpec runSpec(
-      RunEnvironment runEnvironment,
-      StagedContinuation stagedContinuation,
-      String image,
-      LoggingSidecar loggingSidecar) {
-    return new RunSpecBuilder()
-        .runEnvironment(runEnvironment)
-        .stagedContinuation(stagedContinuation)
+  static LoggingSidecar loggingSidecar(final String image, final List<String> args) {
+    return new LoggingSidecarBuilder()
         .image(image)
-        .loggingSidecar(loggingSidecar)
+        .args(args)
         .build();
   }
+
 }
