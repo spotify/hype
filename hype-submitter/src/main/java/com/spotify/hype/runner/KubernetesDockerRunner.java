@@ -246,7 +246,7 @@ public class KubernetesDockerRunner implements DockerRunner {
           .build();
 
       final PodSpec spec = new PodSpecBuilder()
-          .withRestartPolicy("OnFailure") // todo: max retry limit
+          .withRestartPolicy("Never") // todo: enable retries with max retry limit
           .addToContainers(container)
           .build();
 
