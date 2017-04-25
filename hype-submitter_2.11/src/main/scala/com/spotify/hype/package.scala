@@ -1,5 +1,7 @@
 package com.spotify
 
+import com.spotify.hype.model.Volume
+
 import scala.language.implicitConversions
 
 package object hype {
@@ -15,7 +17,7 @@ package object hype {
 
   object VolumeRequest {
     def apply(name: String, mountPath: String): model.VolumeRequest =
-      model.VolumeRequest.volumeRequest(name, mountPath)
+      Volume.newVolumeRequest(name, mountPath)
   }
 
   implicit def fnToHfn[T](fn: util.Fn[T]): HFn[T] = HFn(fn.run())

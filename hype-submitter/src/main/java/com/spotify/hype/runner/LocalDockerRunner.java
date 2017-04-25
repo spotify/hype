@@ -31,6 +31,7 @@ import com.spotify.docker.client.messages.HostConfig;
 import com.spotify.docker.client.messages.Image;
 import com.spotify.hype.model.RunEnvironment;
 import com.spotify.hype.model.StagedContinuation;
+import com.spotify.hype.model.VolumeRequest;
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
@@ -126,7 +127,8 @@ public class LocalDockerRunner implements DockerRunner {
 
       Path volumes = Files.createDirectories(localTmp.resolve("spotify-hype-volumes"));
       env.volumeMounts().forEach(m -> {
-        String localVolume = volumes.resolve(m.volumeRequest().id()).toString();
+        VolumeRequest vr = (VolumeRequest) m.volume();
+        String localVolume = volumes.resolve(vr.id()).toString();
         hostConfig.appendBinds(HostConfig.Bind
             .from(localVolume)
             .to(m.mountPath())

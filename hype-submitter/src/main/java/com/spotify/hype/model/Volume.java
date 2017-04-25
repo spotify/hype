@@ -20,31 +20,21 @@
 
 package com.spotify.hype.model;
 
+import com.spotify.hype.util.Util;
 import io.norberg.automatter.AutoMatter;
 
 /**
- * A request for a volume to be created from the specified storage class, with a specific size.
- *
- * <p>see http://blog.kubernetes.io/2016/10/dynamic-provisioning-and-storage-in-kubernetes.html
+ * Created by romain on 4/24/17.
  */
 @AutoMatter
-public interface VolumeRequest extends Volume {
+public interface Volume {
 
-  String id();
-  String storageClass();
-  String size();
-
-  /**
-   * Mount the requested volume in read-only mode at the specified path.
-   */
-  default VolumeMount mountReadOnly(String mountPath) {
-    return VolumeMount.volumeMount(this, mountPath, true);
-  }
-
-  /**
-   * Mount the requested volume in read-write mode at the specified path.
-   */
-  default VolumeMount mountReadWrite(String mountPath) {
-    return VolumeMount.volumeMount(this, mountPath, false);
+  static VolumeRequest newVolumeRequest(String storageClass, String size) {
+    final String id = "request-" + Util.randomAlphaNumeric(8);
+    return new VolumeRequestBuilder()
+        .id(id)
+        .storageClass(storageClass)
+        .size(size)
+        .build();
   }
 }

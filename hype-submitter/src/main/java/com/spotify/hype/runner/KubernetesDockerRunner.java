@@ -281,12 +281,13 @@ public class KubernetesDockerRunner implements DockerRunner {
 
   private List<VolumeMountInfo> volumeMountInfos(List<VolumeMount> volumeMounts) {
     final Map<VolumeRequest, PersistentVolumeClaim> claims = volumeMounts.stream()
-        .map(VolumeMount::volumeRequest)
+        .filter(v -> v.volume() instanceof VolumeRequest)
+        .map(v -> (VolumeRequest) v.volume())
         .distinct()
         .collect(toMap(identity(), volumeRepository::getClaim));
 
     return volumeMounts.stream()
-        .map(volumeMount -> volumeMountInfo(claims.get(volumeMount.volumeRequest()), volumeMount))
+        .map(volumeMount -> volumeMountInfo(claims.get(volumeMount.volume()), volumeMount))
         .collect(toList());
   }
 
