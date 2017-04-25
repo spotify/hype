@@ -22,6 +22,11 @@ package com.spotify.hype.model;
 
 import io.norberg.automatter.AutoMatter;
 
+/**
+ * Request an existing Google Compute Engine (GCE) Persistent Disk into your pod.
+ *
+ * <p>see https://kubernetes.io/docs/concepts/storage/volumes/#gcepersistentdisk
+ */
 @AutoMatter
 public interface PersistentDisk extends Volume {
 

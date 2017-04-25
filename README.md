@@ -226,6 +226,7 @@ We can then request volumes from this StorageClass using the Hype API:
 ```scala
 import sys.process._
 import com.spotify.hype.magic._
+import com.spotify.hype.model.Volume
 
 implicit val submitter = GkeSubmitter("gcp-project-id",
                                       "gce-zone-id",
@@ -233,7 +234,7 @@ implicit val submitter = GkeSubmitter("gcp-project-id",
                                       "gs://my-staging-bucket")
 
 // Create a 10Gi volume from the 'gce-ssd-pd' storage class
-val ssd10Gi = VolumeRequest("gce-ssd-pd", "10Gi")
+val ssd10Gi = Volume.newVolumeRequest("gce-ssd-pd", "10Gi")
 val mount = "/usr/share/volume" 
 
 val env = RunEnvironment()
@@ -264,6 +265,11 @@ was written to it from the `write` function.
 
 Coordinating metadata and parameters across multiple submissions should be just as trivial as
 passing values from function calls as arguments to other functions.
+
+Note that it is also possible to use a persistent disk that's already present in your GCP project:
+```scala
+val ssd = Volume.fromPersistentDisk("name-of-my-pd")
+```
 
 # Environment Pod from YAML
 

@@ -23,9 +23,15 @@ package com.spotify.hype.model;
 import com.spotify.hype.util.Util;
 import io.norberg.automatter.AutoMatter;
 
+/**
+ * Enables to attach Persistent Disks (new or existing) to your pod.
+ */
 @AutoMatter
 public interface Volume {
 
+  /**
+   * Request on new volume.
+   */
   static VolumeRequest newVolumeRequest(String storageClass, String size) {
     final String id = "request-" + Util.randomAlphaNumeric(8);
     return new VolumeRequestBuilder()
@@ -35,6 +41,9 @@ public interface Volume {
         .build();
   }
 
+  /**
+   * Request an existing disk, based on its name.
+   */
   static PersistentDisk fromPersistentDisk(String pdName) {
     return new PersistentDiskBuilder()
         .pdName(pdName)
