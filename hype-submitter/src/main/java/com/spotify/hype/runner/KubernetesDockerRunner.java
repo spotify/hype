@@ -274,7 +274,6 @@ public class KubernetesDockerRunner implements DockerRunner {
     LOG.info("Mounting {} {} at {}", claimName, ro, volumeMount.mountPath());
 
     return new VolumeMountInfoBuilder()
-        .persistentVolumeClaim(claim)
         .volume(volume)
         .volumeMount(mount)
         .build();
@@ -307,7 +306,6 @@ public class KubernetesDockerRunner implements DockerRunner {
 
   @AutoMatter
   interface VolumeMountInfo {
-    PersistentVolumeClaim persistentVolumeClaim();
     Volume volume();
     io.fabric8.kubernetes.api.model.VolumeMount volumeMount();
   }

@@ -29,6 +29,7 @@ import io.norberg.automatter.AutoMatter;
 public interface VolumeMount {
 
   VolumeRequest volumeRequest();
+//  PersistentDisk persistentDisk();
   String mountPath();
   boolean readOnly();
 
@@ -40,4 +41,14 @@ public interface VolumeMount {
         .readOnly(readOnly)
         .build();
   }
+
+//  static VolumeMount volumeMount(PersistentDisk persistentDisk,
+//                                 String mountPath,
+//                                 boolean readOnly) {
+//    return new VolumeMountBuilder()
+//        .persistentDisk(persistentDisk)
+//        .mountPath(mountPath)
+//        .readOnly(readOnly)
+//        .build();
+//  }
 }
