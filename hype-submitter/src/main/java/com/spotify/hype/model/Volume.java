@@ -23,9 +23,6 @@ package com.spotify.hype.model;
 import com.spotify.hype.util.Util;
 import io.norberg.automatter.AutoMatter;
 
-/**
- * Created by romain on 4/24/17.
- */
 @AutoMatter
 public interface Volume {
 
@@ -36,5 +33,25 @@ public interface Volume {
         .storageClass(storageClass)
         .size(size)
         .build();
+  }
+
+  static PersistentDisk fromPersistentDisk(String pdName) {
+    return new PersistentDiskBuilder()
+        .pdName(pdName)
+        .build();
+  }
+
+  /**
+   * Mount the requested volume in read-only mode at the specified path.
+   */
+  default VolumeMount mountReadOnly(String mountPath) {
+    return VolumeMount.volumeMount(this, mountPath, true);
+  }
+
+  /**
+   * Mount the requested volume in read-write mode at the specified path.
+   */
+  default VolumeMount mountReadWrite(String mountPath) {
+    return VolumeMount.volumeMount(this, mountPath, false);
   }
 }

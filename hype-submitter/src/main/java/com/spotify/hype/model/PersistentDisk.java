@@ -22,15 +22,12 @@ package com.spotify.hype.model;
 
 import io.norberg.automatter.AutoMatter;
 
-/**
- * A request for a volume to be created from the specified storage class, with a specific size.
- *
- * <p>see http://blog.kubernetes.io/2016/10/dynamic-provisioning-and-storage-in-kubernetes.html
- */
 @AutoMatter
-public interface VolumeRequest extends Volume {
+public interface PersistentDisk extends Volume {
 
-  String id();
-  String storageClass();
-  String size();
+  String pdName();
+
+  default String fsType() {
+    return "ext4";
+  }
 }

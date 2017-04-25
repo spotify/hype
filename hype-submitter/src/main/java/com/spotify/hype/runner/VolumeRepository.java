@@ -60,7 +60,7 @@ public class VolumeRepository implements Closeable {
   }
 
   PersistentVolumeClaim getClaim(VolumeRequest volumeRequest) {
-    return claims.computeIfAbsent(volumeRequest, this:: createClaim);
+    return claims.computeIfAbsent(volumeRequest, this::createClaim);
   }
 
   private PersistentVolumeClaim createClaim(VolumeRequest volumeRequest) {
@@ -70,13 +70,13 @@ public class VolumeRepository implements Closeable {
 
     final PersistentVolumeClaim claimTemplate = new PersistentVolumeClaimBuilder()
         .withNewMetadata()
-            .withGenerateName(VOLUME_CLAIM_PREFIX)
-            .addToAnnotations(STORAGE_CLASS_ANNOTATION, volumeRequest.storageClass())
+        .withGenerateName(VOLUME_CLAIM_PREFIX)
+        .addToAnnotations(STORAGE_CLASS_ANNOTATION, volumeRequest.storageClass())
         .endMetadata()
         .withNewSpec()
-            // todo: storageClassName: <class> // in 1.6
-            .withAccessModes(READ_WRITE_ONCE, READ_ONLY_MANY)
-            .withResources(resources)
+        // todo: storageClassName: <class> // in 1.6
+        .withAccessModes(READ_WRITE_ONCE, READ_ONLY_MANY)
+        .withResources(resources)
         .endSpec()
         .build();
 

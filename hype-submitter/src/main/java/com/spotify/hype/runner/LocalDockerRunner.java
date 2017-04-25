@@ -127,7 +127,7 @@ public class LocalDockerRunner implements DockerRunner {
 
       Path volumes = Files.createDirectories(localTmp.resolve("spotify-hype-volumes"));
       env.volumeMounts().forEach(m -> {
-        VolumeRequest vr = (VolumeRequest) m.volume();
+        VolumeRequest vr = (VolumeRequest) m.volume(); // FIXME
         String localVolume = volumes.resolve(vr.id()).toString();
         hostConfig.appendBinds(HostConfig.Bind
             .from(localVolume)
