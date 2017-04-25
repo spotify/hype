@@ -1,5 +1,7 @@
 package com.spotify
 
+import com.spotify.hype.model.Volume
+
 package object hype {
 
   object RunEnvironment {
@@ -13,7 +15,7 @@ package object hype {
 
   object VolumeRequest {
     def apply(name: String, mountPath: String): model.VolumeRequest =
-      model.VolumeRequest.volumeRequest(name, mountPath)
+      Volume.newVolumeRequest(name, mountPath)
   }
 
 }

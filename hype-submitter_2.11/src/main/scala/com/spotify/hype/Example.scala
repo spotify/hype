@@ -1,7 +1,7 @@
 package com.spotify.hype
 
 import com.spotify.hype.model.ResourceRequest.{CPU, MEMORY}
-import com.spotify.hype.model.VolumeRequest._
+import com.spotify.hype.model.Volume
 
 import scala.collection.JavaConverters._
 
@@ -24,7 +24,7 @@ private object Example {
     }
 
     // create a volume request from a predefined storage class with name 'slow'
-    val slow10Gi = volumeRequest("slow", "10Gi")
+    val slow10Gi = Volume.newVolumeRequest("slow", "10Gi")
 
     val submitter = GkeSubmitter("datawhere-test", "us-east1-d", "hype-test", "gs://hype-test/staging")
 

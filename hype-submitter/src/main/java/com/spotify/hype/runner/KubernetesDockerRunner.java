@@ -22,13 +22,12 @@ package com.spotify.hype.runner;
 
 import static com.spotify.hype.util.Util.randomAlphaNumeric;
 import static java.util.Collections.singletonList;
-import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.toList;
-import static java.util.stream.Collectors.toMap;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.google.common.annotations.VisibleForTesting;
+import com.spotify.hype.model.PersistentDisk;
 import com.spotify.hype.model.RunEnvironment;
 import com.spotify.hype.model.Secret;
 import com.spotify.hype.model.StagedContinuation;
@@ -39,6 +38,8 @@ import io.fabric8.kubernetes.api.model.ContainerBuilder;
 import io.fabric8.kubernetes.api.model.ContainerStatus;
 import io.fabric8.kubernetes.api.model.DoneablePod;
 import io.fabric8.kubernetes.api.model.EnvVarBuilder;
+import io.fabric8.kubernetes.api.model.GCEPersistentDiskVolumeSource;
+import io.fabric8.kubernetes.api.model.GCEPersistentDiskVolumeSourceBuilder;
 import io.fabric8.kubernetes.api.model.ObjectMeta;
 import io.fabric8.kubernetes.api.model.PersistentVolumeClaim;
 import io.fabric8.kubernetes.api.model.Pod;
@@ -256,38 +257,56 @@ public class KubernetesDockerRunner implements DockerRunner {
     }
   }
 
-  private VolumeMountInfo volumeMountInfo(PersistentVolumeClaim claim, VolumeMount volumeMount) {
-    final String claimName = claim.getMetadata().getName();
-
-    final Volume volume = new VolumeBuilder()
-        .withName(claimName)
-        .withNewPersistentVolumeClaim(claimName, volumeMount.readOnly())
-        .build();
+  private VolumeMountInfo volumeMountInfo(Volume volume, VolumeMount volumeMount) {
 
     final io.fabric8.kubernetes.api.model.VolumeMount mount = new VolumeMountBuilder()
-        .withName(claimName)
+        .withName(volume.getName())
         .withMountPath(volumeMount.mountPath())
         .withReadOnly(volumeMount.readOnly())
         .build();
 
     final String ro = volumeMount.readOnly() ? "readOnly" : "readWrite";
-    LOG.info("Mounting {} {} at {}", claimName, ro, volumeMount.mountPath());
+    LOG.info("Mounting {} {} at {}", volume.getName(), ro, volumeMount.mountPath());
 
     return new VolumeMountInfoBuilder()
-        .persistentVolumeClaim(claim)
         .volume(volume)
         .volumeMount(mount)
         .build();
   }
 
-  private List<VolumeMountInfo> volumeMountInfos(List<VolumeMount> volumeMounts) {
-    final Map<VolumeRequest, PersistentVolumeClaim> claims = volumeMounts.stream()
-        .map(VolumeMount::volumeRequest)
-        .distinct()
-        .collect(toMap(identity(), volumeRepository::getClaim));
+  private Volume buildVolume(VolumeMount volumeMount) {
+    final com.spotify.hype.model.Volume volume = volumeMount.volume();
 
+    if (volume instanceof VolumeRequest) {
+      final VolumeRequest volumeRequest = (VolumeRequest) volume;
+      final PersistentVolumeClaim claim = volumeRepository.getClaim(volumeRequest);
+      final String claimName = claim.getMetadata().getName();
+      return new VolumeBuilder()
+          .withName(claimName)
+          .withNewPersistentVolumeClaim(claimName, volumeMount.readOnly())
+          .build();
+    } else if (volume instanceof PersistentDisk) {
+      final PersistentDisk persistentDisk = (PersistentDisk) volume;
+      final GCEPersistentDiskVolumeSource gcePersistentDiskVolumeSource =
+          new GCEPersistentDiskVolumeSourceBuilder()
+              .withPdName(persistentDisk.pdName())
+              .withFsType(persistentDisk.fsType())
+              .withReadOnly(volumeMount.readOnly())
+              .build();
+
+      return new VolumeBuilder()
+          .withName(persistentDisk.pdName())
+          .withGcePersistentDisk(gcePersistentDiskVolumeSource)
+          .build();
+    }
+    throw new RuntimeException("Unknown type of volume.");
+  }
+
+
+  private List<VolumeMountInfo> volumeMountInfos(List<VolumeMount> volumeMounts) {
     return volumeMounts.stream()
-        .map(volumeMount -> volumeMountInfo(claims.get(volumeMount.volumeRequest()), volumeMount))
+        .map(v -> volumeMountInfo(buildVolume(v), v))
+        .distinct()
         .collect(toList());
   }
 
@@ -307,7 +326,6 @@ public class KubernetesDockerRunner implements DockerRunner {
 
   @AutoMatter
   interface VolumeMountInfo {
-    PersistentVolumeClaim persistentVolumeClaim();
     Volume volume();
     io.fabric8.kubernetes.api.model.VolumeMount volumeMount();
   }

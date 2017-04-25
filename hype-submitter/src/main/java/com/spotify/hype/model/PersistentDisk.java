@@ -23,14 +23,16 @@ package com.spotify.hype.model;
 import io.norberg.automatter.AutoMatter;
 
 /**
- * A request for a volume to be created from the specified storage class, with a specific size.
+ * Request an existing Google Compute Engine (GCE) Persistent Disk into your pod.
  *
- * <p>see http://blog.kubernetes.io/2016/10/dynamic-provisioning-and-storage-in-kubernetes.html
+ * <p>see https://kubernetes.io/docs/concepts/storage/volumes/#gcepersistentdisk
  */
 @AutoMatter
-public interface VolumeRequest extends Volume {
+public interface PersistentDisk extends Volume {
 
-  String id();
-  String storageClass();
-  String size();
+  String pdName();
+
+  default String fsType() {
+    return "ext4";
+  }
 }
