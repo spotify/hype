@@ -87,7 +87,7 @@ public class VolumeRepositoryTest {
   }
 
   @Test
-  public void createsNewVolumesClaim() throws Exception {
+  public void createsNewVolumeClaim() throws Exception {
     VolumeRequest request = VolumeRequest.volumeRequest("storage-class-name", "16Gi");
     PersistentVolumeClaim claim = volumeRepository.getClaim(request);
 
@@ -99,6 +99,14 @@ public class VolumeRepositoryTest {
     assertThat(
         claim.getSpec().getResources().getRequests(),
         hasEntry("storage", new Quantity("16Gi")));
+  }
+
+  @Test
+  public void createsNewVolumeClaimWithSpecificName() throws Exception {
+    VolumeRequest request = VolumeRequest.volumeRequest("the-claim", "storage-class-name", "16Gi");
+    PersistentVolumeClaim claim = volumeRepository.getClaim(request);
+
+    assertThat(claim.getMetadata().getName(), equalTo("the-claim"));
   }
 
   @Test

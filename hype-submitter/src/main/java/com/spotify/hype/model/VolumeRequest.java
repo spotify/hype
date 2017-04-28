@@ -52,6 +52,10 @@ public interface VolumeRequest {
 
   static VolumeRequest volumeRequest(String storageClass, String size) {
     final String id = VOLUME_REQUEST_PREFIX + Util.randomAlphaNumeric(8);
+    return volumeRequest(id, storageClass, size);
+  }
+
+  static VolumeRequest volumeRequest(String id, String storageClass, String size) {
     return new VolumeRequestBuilder()
         .id(id)
         .keep(false) // new claims are deleted by default

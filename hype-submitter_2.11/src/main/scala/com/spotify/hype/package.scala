@@ -14,8 +14,11 @@ package object hype {
   }
 
   object VolumeRequest {
-    def apply(name: String, mountPath: String): model.VolumeRequest =
-      model.VolumeRequest.volumeRequest(name, mountPath)
+    def apply(storageClass: String, mountPath: String): model.VolumeRequest =
+      model.VolumeRequest.volumeRequest(storageClass, mountPath)
+
+    def apply(id: String, storageClass: String, mountPath: String): model.VolumeRequest =
+      model.VolumeRequest.volumeRequest(id, storageClass, mountPath)
   }
 
   object ExistingVolume {
