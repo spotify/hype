@@ -31,16 +31,54 @@ import io.norberg.automatter.AutoMatter;
 @AutoMatter
 public interface VolumeRequest {
 
+  String VOLUME_REQUEST_PREFIX = "hype-request-";
+
   String id();
-  String storageClass();
-  String size();
+  boolean keep();
+  RequestSpec spec();
+
+  interface RequestSpec { }
+
+  @AutoMatter
+  interface NewClaimRequest extends RequestSpec {
+    String storageClass();
+    String size();
+  }
+
+  @AutoMatter
+  interface ExistingClaimRequest extends RequestSpec {
+    String claimName();
+  }
 
   static VolumeRequest volumeRequest(String storageClass, String size) {
-    final String id = "request-" + Util.randomAlphaNumeric(8);
+    final String id = VOLUME_REQUEST_PREFIX + Util.randomAlphaNumeric(8);
+    return volumeRequest(id, storageClass, size);
+  }
+
+  static VolumeRequest volumeRequest(String id, String storageClass, String size) {
     return new VolumeRequestBuilder()
         .id(id)
-        .storageClass(storageClass)
-        .size(size)
+        .keep(false) // new claims are deleted by default
+        .spec(new NewClaimRequestBuilder()
+            .storageClass(storageClass)
+            .size(size)
+            .build())
+        .build();
+  }
+
+  static VolumeRequest existingClaim(String claimName) {
+    return new VolumeRequestBuilder()
+        .id(claimName)
+        .keep(true) // do not delete existing claims
+        .spec(new ExistingClaimRequestBuilder()
+            .claimName(claimName)
+            .build())
+        .build();
+  }
+
+  default VolumeRequest keepOnExit() {
+    return VolumeRequestBuilder.from(this)
+        .keep(true)
         .build();
   }
 

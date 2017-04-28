@@ -17,6 +17,8 @@ A library for seamlessly executing arbitrary JVM closures in [Docker] containers
   * [Leveraging implicits](#leveraging-implicits)
 - [Process overview](#process-overview)
 - [Persistent volumes](#persistent-volumes)
+  * [GCE Persistent Disk](#gce-persistent-disk)
+    + [Volume re-use](#volume-re-use)
 - [Environment Pod from YAML](#environment-pod-from-yaml)
 
 ---
@@ -208,6 +210,8 @@ prepare some data, and then fork out to several parallel tasks that use the disk
        height="213"/>
 </p>
 
+## GCE Persistent Disk
+
 In this example, we're using a StorageClass for [GCE Persistent Disk] that we've already set up on
 our cluster.
 
@@ -264,6 +268,35 @@ was written to it from the `write` function.
 
 Coordinating metadata and parameters across multiple submissions should be just as trivial as
 passing values from function calls as arguments to other functions.
+
+### Volume re-use
+
+By default, the backing claim for a `VolumeRequest` on Kubernetes is deleted when the JVM 
+terminates. This can be overridden by using `.keepOnExit`.
+
+```scala
+val disk = VolumeRequest("gce-ssd-pd", "10Gi").keepOnExit
+```
+
+This is useful in use cases with larger volumes that take a significant amount of time to load,
+or when there's some sort of workflow orchestration around the Hype code that might run 
+different part separate JVM invocations.
+
+The volume claim id can be seen in the execution logs as:
+
+```
+> Created PersistentVolumeClaim hype-request-4fzih539 for VolumeRequest{id=hype-request-4fzih539, keep=true, spec=VolumeRequest.NewClaimRequest{storageClass=slow, size=10Gi}}
+```
+
+The claim id here is `"hype-request-4fzih539"` and it is marked `keep=true`. Note that the id is
+also part of the `VolumeRequest` value itself and can be accessed programmatically through
+`disk.id`.
+
+In order to re-use this volume claim in later runs, simply construct the `VolumeRequest` through:
+
+```scala
+val disk = ExistingVolume("hype-request-4fzih539")
+```
 
 # Environment Pod from YAML
 

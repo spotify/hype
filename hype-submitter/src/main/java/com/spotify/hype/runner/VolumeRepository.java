@@ -20,7 +20,12 @@
 
 package com.spotify.hype.runner;
 
+import static java.util.stream.Collectors.toList;
+
 import com.spotify.hype.model.VolumeRequest;
+import com.spotify.hype.model.VolumeRequest.ExistingClaimRequest;
+import com.spotify.hype.model.VolumeRequest.NewClaimRequest;
+import com.spotify.hype.model.VolumeRequest.RequestSpec;
 import io.fabric8.kubernetes.api.model.PersistentVolumeClaim;
 import io.fabric8.kubernetes.api.model.PersistentVolumeClaimBuilder;
 import io.fabric8.kubernetes.api.model.Quantity;
@@ -29,7 +34,8 @@ import io.fabric8.kubernetes.api.model.ResourceRequirementsBuilder;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import java.io.Closeable;
 import java.io.IOException;
-import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -45,10 +51,9 @@ public class VolumeRepository implements Closeable {
 
   private static final Logger LOG = LoggerFactory.getLogger(VolumeRepository.class);
 
-  private static final String STORAGE_CLASS_ANNOTATION = "volume.beta.kubernetes.io/storage-class";
-  private static final String VOLUME_CLAIM_PREFIX = "hype-claim-";
-  private static final String READ_WRITE_ONCE = "ReadWriteOnce";
-  private static final String READ_ONLY_MANY = "ReadOnlyMany";
+  static final String STORAGE_CLASS_ANNOTATION = "volume.beta.kubernetes.io/storage-class";
+  static final String READ_WRITE_ONCE = "ReadWriteOnce";
+  static final String READ_ONLY_MANY = "ReadOnlyMany";
 
   private final KubernetesClient client;
 
@@ -64,33 +69,56 @@ public class VolumeRepository implements Closeable {
   }
 
   private PersistentVolumeClaim createClaim(VolumeRequest volumeRequest) {
-    final ResourceRequirements resources = new ResourceRequirementsBuilder()
-        .addToRequests("storage", new Quantity(volumeRequest.size()))
-        .build();
+    final RequestSpec spec = volumeRequest.spec();
 
-    final PersistentVolumeClaim claimTemplate = new PersistentVolumeClaimBuilder()
-        .withNewMetadata()
-            .withGenerateName(VOLUME_CLAIM_PREFIX)
-            .addToAnnotations(STORAGE_CLASS_ANNOTATION, volumeRequest.storageClass())
-        .endMetadata()
-        .withNewSpec()
-            // todo: storageClassName: <class> // in 1.6
-            .withAccessModes(READ_WRITE_ONCE, READ_ONLY_MANY)
-            .withResources(resources)
-        .endSpec()
-        .build();
+    if (spec instanceof ExistingClaimRequest) {
+      final ExistingClaimRequest existingClaimRequest = (ExistingClaimRequest) spec;
+      final String claimName = existingClaimRequest.claimName();
+      final PersistentVolumeClaim existingClaim =
+          client.persistentVolumeClaims().withName(claimName).get();
 
-    final PersistentVolumeClaim claim = client.persistentVolumeClaims().create(claimTemplate);
-    LOG.info("Created PersistentVolumeClaim {} for {}",
-        claim.getMetadata().getName(),
-        volumeRequest);
+      if (existingClaim == null) {
+        throw new RuntimeException("Requested claim '" + claimName + "' not found");
+      }
 
-    return claim;
+      return existingClaim;
+    } else if (spec instanceof NewClaimRequest) {
+      final NewClaimRequest newClaimRequest = (NewClaimRequest) spec;
+
+      final ResourceRequirements resources = new ResourceRequirementsBuilder()
+          .addToRequests("storage", new Quantity(newClaimRequest.size()))
+          .build();
+
+      final PersistentVolumeClaim claimTemplate = new PersistentVolumeClaimBuilder()
+          .withNewMetadata()
+              .withName(volumeRequest.id())
+              .addToAnnotations(STORAGE_CLASS_ANNOTATION, newClaimRequest.storageClass())
+          .endMetadata()
+          .withNewSpec()
+              // todo: storageClassName: <class> // in 1.6
+              .withAccessModes(READ_WRITE_ONCE, READ_ONLY_MANY)
+              .withResources(resources)
+          .endSpec()
+          .build();
+
+      final PersistentVolumeClaim claim = client.persistentVolumeClaims().create(claimTemplate);
+      LOG.info("Created PersistentVolumeClaim {} for {}",
+          claim.getMetadata().getName(),
+          volumeRequest);
+
+      return claim;
+    } else {
+      throw new RuntimeException("Unknown RequestSpec");
+    }
   }
 
   @Override
   public void close() throws IOException {
-    // todo: support retaining VolumeRequests
-    client.persistentVolumeClaims().delete(new ArrayList<>(claims.values()));
+    final List<PersistentVolumeClaim> toDelete = claims.entrySet().stream()
+        .filter(e -> !e.getKey().keep())
+        .map(Map.Entry::getValue)
+        .collect(toList());
+
+    client.persistentVolumeClaims().delete(toDelete);
   }
 }
