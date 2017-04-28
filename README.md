@@ -17,6 +17,8 @@ A library for seamlessly executing arbitrary JVM closures in [Docker] containers
   * [Leveraging implicits](#leveraging-implicits)
 - [Process overview](#process-overview)
 - [Persistent volumes](#persistent-volumes)
+  * [GCE Persistent Disk](#gce-persistent-disk)
+    + [Volume re-use](#volume-re-use)
 - [Environment Pod from YAML](#environment-pod-from-yaml)
 
 ---
