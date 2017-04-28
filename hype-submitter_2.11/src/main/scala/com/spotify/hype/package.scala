@@ -18,6 +18,11 @@ package object hype {
       model.VolumeRequest.volumeRequest(name, mountPath)
   }
 
+  object ExistingVolume {
+    def apply(claimName: String): model.VolumeRequest =
+      model.VolumeRequest.existingClaim(claimName)
+  }
+
   implicit def fnToHfn[T](fn: util.Fn[T]): HFn[T] = HFn(fn.run())
 
   implicit def toHfn[A](fn: () => A): HFn[A] = HFn(fn())
