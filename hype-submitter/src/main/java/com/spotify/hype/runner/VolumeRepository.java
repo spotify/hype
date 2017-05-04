@@ -23,7 +23,7 @@ package com.spotify.hype.runner;
 import static java.util.stream.Collectors.toList;
 
 import com.spotify.hype.model.VolumeRequest;
-import com.spotify.hype.model.VolumeRequest.ExistingClaimRequest;
+import com.spotify.hype.model.VolumeRequest.CreateIfNotExistsClaimRequest;
 import com.spotify.hype.model.VolumeRequest.NewClaimRequest;
 import com.spotify.hype.model.VolumeRequest.RequestSpec;
 import io.fabric8.kubernetes.api.model.PersistentVolumeClaim;
@@ -71,18 +71,16 @@ public class VolumeRepository implements Closeable {
   private PersistentVolumeClaim createClaim(VolumeRequest volumeRequest) {
     final RequestSpec spec = volumeRequest.spec();
 
-    if (spec instanceof ExistingClaimRequest) {
-      final ExistingClaimRequest existingClaimRequest = (ExistingClaimRequest) spec;
-      final String claimName = existingClaimRequest.claimName();
+    if (spec instanceof CreateIfNotExistsClaimRequest) {
+      final String claimName = volumeRequest.id();
       final PersistentVolumeClaim existingClaim =
           client.persistentVolumeClaims().withName(claimName).get();
 
-      if (existingClaim == null) {
-        throw new RuntimeException("Requested claim '" + claimName + "' not found");
+      if (existingClaim != null) {
+        return existingClaim;
       }
-
-      return existingClaim;
-    } else if (spec instanceof NewClaimRequest) {
+    }
+    if (spec instanceof NewClaimRequest) {
       final NewClaimRequest newClaimRequest = (NewClaimRequest) spec;
 
       final ResourceRequirements resources = new ResourceRequirementsBuilder()
