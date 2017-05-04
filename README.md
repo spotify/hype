@@ -271,32 +271,21 @@ passing values from function calls as arguments to other functions.
 
 ### Volume re-use
 
-By default, the backing claim for a `VolumeRequest` on Kubernetes is deleted when the JVM 
-terminates. This can be overridden by using `.keepOnExit`.
+By default, the backing claim for a `VolumeRequest` on Kubernetes is transient and is deleted when
+the JVM terminates.
+
+If you wish to persist the Volume between invocations, you can use:
 
 ```scala
-val disk = VolumeRequest("gce-ssd-pd", "10Gi").keepOnExit
+val disk = PersistentVolume("my-persistent-volume", "gce-ssd-pd", "10Gi")
 ```
+
+If the volume does not exist, it will be created. Subsequent invocations will return the
+already created disk.
 
 This is useful in use cases with larger volumes that take a significant amount of time to load,
 or when there's some sort of workflow orchestration around the Hype code that might run 
 different part separate JVM invocations.
-
-The volume claim id can be seen in the execution logs as:
-
-```
-> Created PersistentVolumeClaim hype-request-4fzih539 for VolumeRequest{id=hype-request-4fzih539, keep=true, spec=VolumeRequest.NewClaimRequest{storageClass=slow, size=10Gi}}
-```
-
-The claim id here is `"hype-request-4fzih539"` and it is marked `keep=true`. Note that the id is
-also part of the `VolumeRequest` value itself and can be accessed programmatically through
-`disk.id`.
-
-In order to re-use this volume claim in later runs, simply construct the `VolumeRequest` through:
-
-```scala
-val disk = ExistingVolume("hype-request-4fzih539")
-```
 
 # Environment Pod from YAML
 
