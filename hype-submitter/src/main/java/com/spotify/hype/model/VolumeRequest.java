@@ -35,18 +35,14 @@ public interface VolumeRequest {
 
   String id();
   boolean keep();
-  RequestSpec spec();
-
-  interface RequestSpec { }
+  NewClaimRequest spec();
 
   @AutoMatter
-  interface NewClaimRequest extends RequestSpec {
+  interface NewClaimRequest {
     String storageClass();
     String size();
+    boolean createIfNotExists();
   }
-
-  @AutoMatter
-  interface CreateIfNotExistsClaimRequest extends NewClaimRequest {}
 
   static VolumeRequest volumeRequest(String storageClass, String size) {
     final String id = VOLUME_REQUEST_PREFIX + Util.randomAlphaNumeric(8);
@@ -56,6 +52,7 @@ public interface VolumeRequest {
         .spec(new NewClaimRequestBuilder()
             .storageClass(storageClass)
             .size(size)
+            .createIfNotExists(false)
             .build())
         .build();
   }
@@ -65,9 +62,10 @@ public interface VolumeRequest {
     return new VolumeRequestBuilder()
         .id(id)
         .keep(true)
-        .spec(new CreateIfNotExistsClaimRequestBuilder()
+        .spec(new NewClaimRequestBuilder()
             .storageClass(storageClass)
             .size(size)
+            .createIfNotExists(true)
             .build())
         .build();
   }

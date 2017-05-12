@@ -112,7 +112,7 @@ public class VolumeRepositoryTest {
   }
 
   @Test
-  public void CreateWhenExistingClaimNotFound() throws Exception {
+  public void createWhenExistingClaimNotFound() throws Exception {
     VolumeRequest request = VolumeRequest.createIfNotExists("new-claim", "class", "16Gi");
     PersistentVolumeClaim claim = volumeRepository.getClaim(request);
 

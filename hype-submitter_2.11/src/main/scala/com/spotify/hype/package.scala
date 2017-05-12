@@ -13,7 +13,7 @@ package object hype {
       model.RunEnvironment.fromYaml(resourcePath)
   }
 
-  object VolumeRequest {
+  object TransientVolume {
     def apply(storageClass: String, mountPath: String): model.VolumeRequest =
       model.VolumeRequest.volumeRequest(storageClass, mountPath)
   }

@@ -237,7 +237,7 @@ implicit val submitter = GkeSubmitter("gcp-project-id",
                                       "gs://my-staging-bucket")
 
 // Create a 10Gi volume from the 'gce-ssd-pd' storage class
-val ssd10Gi = VolumeRequest("gce-ssd-pd", "10Gi")
+val ssd10Gi = TransientVolume("gce-ssd-pd", "10Gi")
 val mount = "/usr/share/volume" 
 
 val env = RunEnvironment()
@@ -271,8 +271,8 @@ passing values from function calls as arguments to other functions.
 
 ### Volume re-use
 
-By default, the backing claim for a `VolumeRequest` on Kubernetes is transient and is deleted when
-the JVM terminates.
+By default, the backing claim for a `TransientVolume` on Kubernetes is deleted when the JVM
+terminates.
 
 If you wish to persist the Volume between invocations, you can use:
 
