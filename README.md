@@ -16,7 +16,7 @@ A library for seamlessly executing arbitrary JVM closures in [Docker] containers
   * [Full example](#full-example)
   * [Leveraging implicits](#leveraging-implicits)
 - [Process overview](#process-overview)
-- [Persistent volumes](#persistent-volumes)
+- [Persistent disk](#persistent-disk)
   * [GCE Persistent Disk](#gce-persistent-disk)
     + [Volume re-use](#volume-re-use)
 - [Environment Pod from YAML](#environment-pod-from-yaml)
@@ -198,7 +198,7 @@ This describes what Hype does from a high level point of view.
        height="336"/>
 </p>
 
-# Persistent volumes
+# Persistent disk
 
 Hype makes it easy to schedule persistent disk volumes across different closures in a workflow.
 A typical pattern seen in many use cases is to first use a disk in read-write mode to download and
@@ -237,7 +237,7 @@ implicit val submitter = GkeSubmitter("gcp-project-id",
                                       "gs://my-staging-bucket")
 
 // Create a 10Gi volume from the 'gce-ssd-pd' storage class
-val ssd10Gi = VolumeRequest("gce-ssd-pd", "10Gi")
+val ssd10Gi = TransientVolume("gce-ssd-pd", "10Gi")
 val mount = "/usr/share/volume" 
 
 val env = RunEnvironment()
@@ -271,32 +271,21 @@ passing values from function calls as arguments to other functions.
 
 ### Volume re-use
 
-By default, the backing claim for a `VolumeRequest` on Kubernetes is deleted when the JVM 
-terminates. This can be overridden by using `.keepOnExit`.
+By default, the backing claim for a `TransientVolume` on Kubernetes is deleted when the JVM
+terminates.
+
+If you wish to persist the Volume between invocations, you can use:
 
 ```scala
-val disk = VolumeRequest("gce-ssd-pd", "10Gi").keepOnExit
+val disk = PersistentVolume("my-persistent-volume", "gce-ssd-pd", "10Gi")
 ```
+
+If the volume does not exist, it will be created. Subsequent invocations will return use already
+created volume.
 
 This is useful in use cases with larger volumes that take a significant amount of time to load,
-or when there's some sort of workflow orchestration around the Hype code that might run 
-different part separate JVM invocations.
-
-The volume claim id can be seen in the execution logs as:
-
-```
-> Created PersistentVolumeClaim hype-request-4fzih539 for VolumeRequest{id=hype-request-4fzih539, keep=true, spec=VolumeRequest.NewClaimRequest{storageClass=slow, size=10Gi}}
-```
-
-The claim id here is `"hype-request-4fzih539"` and it is marked `keep=true`. Note that the id is
-also part of the `VolumeRequest` value itself and can be accessed programmatically through
-`disk.id`.
-
-In order to re-use this volume claim in later runs, simply construct the `VolumeRequest` through:
-
-```scala
-val disk = ExistingVolume("hype-request-4fzih539")
-```
+or when there's some sort of workflow orchestration around the Hype code that might run
+different parts in separate JVM invocations.
 
 # Environment Pod from YAML
 

@@ -24,6 +24,8 @@ import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasEntry;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.not;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.times;
@@ -52,7 +54,7 @@ import org.mockito.runners.MockitoJUnitRunner;
 @RunWith(MockitoJUnitRunner.class)
 public class VolumeRepositoryTest {
 
-  private static final String EXISTING_CLAIM = "hype-request-abc123";
+  private static final String EXISTING_CLAIM = "name-class-16Gi";
 
   @Rule public ExpectedException expect = ExpectedException.none();
 
@@ -102,28 +104,22 @@ public class VolumeRepositoryTest {
   }
 
   @Test
-  public void createsNewVolumeClaimWithSpecificName() throws Exception {
-    VolumeRequest request = VolumeRequest.volumeRequest("the-claim", "storage-class-name", "16Gi");
-    PersistentVolumeClaim claim = volumeRepository.getClaim(request);
-
-    assertThat(claim.getMetadata().getName(), equalTo("the-claim"));
-  }
-
-  @Test
   public void returnsExistingClaim() throws Exception {
-    VolumeRequest request = VolumeRequest.existingClaim(EXISTING_CLAIM);
+    VolumeRequest request = VolumeRequest.createIfNotExists("name", "class", "16Gi");
     PersistentVolumeClaim claim = volumeRepository.getClaim(request);
 
     assertThat(claim, is(mockPvc));
   }
 
   @Test
-  public void throwsWhenExistingClaimNotFound() throws Exception {
-    expect.expect(RuntimeException.class);
-    expect.expectMessage("Requested claim 'does-not-exist' not found");
+  public void createWhenExistingClaimNotFound() throws Exception {
+    VolumeRequest request = VolumeRequest.createIfNotExists("new-claim", "class", "16Gi");
+    PersistentVolumeClaim claim = volumeRepository.getClaim(request);
 
-    VolumeRequest request = VolumeRequest.existingClaim("does-not-exist");
-    volumeRepository.getClaim(request);
+    assertThat(claim, not(mockPvc));
+    assertThat(
+        claim.getSpec().getResources().getRequests(),
+        hasEntry("storage", new Quantity("16Gi")));
   }
 
   @Test

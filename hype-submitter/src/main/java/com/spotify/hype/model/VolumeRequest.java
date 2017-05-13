@@ -35,43 +35,37 @@ public interface VolumeRequest {
 
   String id();
   boolean keep();
-  RequestSpec spec();
-
-  interface RequestSpec { }
+  ClaimRequest spec();
 
   @AutoMatter
-  interface NewClaimRequest extends RequestSpec {
+  interface ClaimRequest {
     String storageClass();
     String size();
-  }
-
-  @AutoMatter
-  interface ExistingClaimRequest extends RequestSpec {
-    String claimName();
+    boolean useExisting();
   }
 
   static VolumeRequest volumeRequest(String storageClass, String size) {
     final String id = VOLUME_REQUEST_PREFIX + Util.randomAlphaNumeric(8);
-    return volumeRequest(id, storageClass, size);
-  }
-
-  static VolumeRequest volumeRequest(String id, String storageClass, String size) {
     return new VolumeRequestBuilder()
         .id(id)
         .keep(false) // new claims are deleted by default
-        .spec(new NewClaimRequestBuilder()
+        .spec(new ClaimRequestBuilder()
             .storageClass(storageClass)
             .size(size)
+            .useExisting(false)
             .build())
         .build();
   }
 
-  static VolumeRequest existingClaim(String claimName) {
+  static VolumeRequest createIfNotExists(String name, String storageClass, String size) {
+    final String id = String.format("%s-%s-%s", name, storageClass, size);
     return new VolumeRequestBuilder()
-        .id(claimName)
-        .keep(true) // do not delete existing claims
-        .spec(new ExistingClaimRequestBuilder()
-            .claimName(claimName)
+        .id(id)
+        .keep(true)
+        .spec(new ClaimRequestBuilder()
+            .storageClass(storageClass)
+            .size(size)
+            .useExisting(true)
             .build())
         .build();
   }

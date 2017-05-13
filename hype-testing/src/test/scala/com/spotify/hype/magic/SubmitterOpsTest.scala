@@ -16,7 +16,7 @@
  */
 package com.spotify.hype.magic
 
-import com.spotify.hype.{HFn, HFnTest, LocalSubmitter, RunEnvironment, VolumeRequest}
+import com.spotify.hype.{HFn, HFnTest, LocalSubmitter, RunEnvironment, TransientVolume}
 import org.scalatest.{FlatSpec, Matchers}
 
 import scala.language.postfixOps
@@ -37,7 +37,7 @@ class SubmitterOpsTest extends FlatSpec with Matchers {
   }
 
   it should "support explicit env" in {
-    val volume = VolumeRequest("slow", "1G")
+    val volume = TransientVolume("slow", "1G")
     val explicitEnv = RunEnvironment()
     val rwEnv = explicitEnv.withMount(volume.mountReadWrite("/foo"))
     val roEnv = explicitEnv.withMount(volume.mountReadOnly("/readFoo"))

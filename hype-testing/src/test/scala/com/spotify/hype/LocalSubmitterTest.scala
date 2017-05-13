@@ -41,7 +41,7 @@ class LocalSubmitterTest extends FlatSpec with Matchers {
       "foobar"
     }
 
-    val volume = VolumeRequest("foo", "10G")
+    val volume = TransientVolume("foo", "10G")
     submitter.submit(writeHFn, env.withMount(volume.mountReadWrite("/foo"))) shouldBe "foobar"
 
     val readHFn = HFn.withImage(HFnTest.testImage) {
