@@ -23,7 +23,7 @@ package com.spotify.hype.runner;
 import static java.util.stream.Collectors.toList;
 
 import com.spotify.hype.model.VolumeRequest;
-import com.spotify.hype.model.VolumeRequest.NewClaimRequest;
+import com.spotify.hype.model.VolumeRequest.ClaimRequest;
 import io.fabric8.kubernetes.api.model.PersistentVolumeClaim;
 import io.fabric8.kubernetes.api.model.PersistentVolumeClaimBuilder;
 import io.fabric8.kubernetes.api.model.Quantity;
@@ -67,9 +67,9 @@ public class VolumeRepository implements Closeable {
   }
 
   private PersistentVolumeClaim createClaim(VolumeRequest volumeRequest) {
-    final NewClaimRequest spec = volumeRequest.spec();
+    final ClaimRequest spec = volumeRequest.spec();
 
-    if (spec.createIfNotExists()) {
+    if (spec.useExisting()) {
       final String claimName = volumeRequest.id();
       final PersistentVolumeClaim existingClaim =
           client.persistentVolumeClaims().withName(claimName).get();
@@ -78,6 +78,7 @@ public class VolumeRepository implements Closeable {
         return existingClaim;
       }
     }
+
     final ResourceRequirements resources = new ResourceRequirementsBuilder()
         .addToRequests("storage", new Quantity(spec.size()))
         .build();

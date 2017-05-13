@@ -16,7 +16,7 @@ A library for seamlessly executing arbitrary JVM closures in [Docker] containers
   * [Full example](#full-example)
   * [Leveraging implicits](#leveraging-implicits)
 - [Process overview](#process-overview)
-- [Persistent volumes](#persistent-volumes)
+- [Persistent disk](#persistent-disk)
   * [GCE Persistent Disk](#gce-persistent-disk)
     + [Volume re-use](#volume-re-use)
 - [Environment Pod from YAML](#environment-pod-from-yaml)
@@ -198,7 +198,7 @@ This describes what Hype does from a high level point of view.
        height="336"/>
 </p>
 
-# Persistent volumes
+# Persistent disk
 
 Hype makes it easy to schedule persistent disk volumes across different closures in a workflow.
 A typical pattern seen in many use cases is to first use a disk in read-write mode to download and
@@ -280,12 +280,12 @@ If you wish to persist the Volume between invocations, you can use:
 val disk = PersistentVolume("my-persistent-volume", "gce-ssd-pd", "10Gi")
 ```
 
-If the volume does not exist, it will be created. Subsequent invocations will return the
-already created disk.
+If the volume does not exist, it will be created. Subsequent invocations will return use already
+created volume.
 
 This is useful in use cases with larger volumes that take a significant amount of time to load,
-or when there's some sort of workflow orchestration around the Hype code that might run 
-different part separate JVM invocations.
+or when there's some sort of workflow orchestration around the Hype code that might run
+different parts in separate JVM invocations.
 
 # Environment Pod from YAML
 

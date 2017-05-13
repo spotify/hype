@@ -35,13 +35,13 @@ public interface VolumeRequest {
 
   String id();
   boolean keep();
-  NewClaimRequest spec();
+  ClaimRequest spec();
 
   @AutoMatter
-  interface NewClaimRequest {
+  interface ClaimRequest {
     String storageClass();
     String size();
-    boolean createIfNotExists();
+    boolean useExisting();
   }
 
   static VolumeRequest volumeRequest(String storageClass, String size) {
@@ -49,10 +49,10 @@ public interface VolumeRequest {
     return new VolumeRequestBuilder()
         .id(id)
         .keep(false) // new claims are deleted by default
-        .spec(new NewClaimRequestBuilder()
+        .spec(new ClaimRequestBuilder()
             .storageClass(storageClass)
             .size(size)
-            .createIfNotExists(false)
+            .useExisting(false)
             .build())
         .build();
   }
@@ -62,10 +62,10 @@ public interface VolumeRequest {
     return new VolumeRequestBuilder()
         .id(id)
         .keep(true)
-        .spec(new NewClaimRequestBuilder()
+        .spec(new ClaimRequestBuilder()
             .storageClass(storageClass)
             .size(size)
-            .createIfNotExists(true)
+            .useExisting(true)
             .build())
         .build();
   }
