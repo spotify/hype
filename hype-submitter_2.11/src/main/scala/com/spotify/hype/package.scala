@@ -14,13 +14,13 @@ package object hype {
   }
 
   object TransientVolume {
-    def apply(storageClass: String, mountPath: String): model.VolumeRequest =
-      model.VolumeRequest.volumeRequest(storageClass, mountPath)
+    def apply(storageClass: String, size: String): model.VolumeRequest =
+      model.VolumeRequest.volumeRequest(storageClass, size)
   }
 
   object PersistentVolume {
-    def apply(name: String, storageClass: String, mountPath: String): model.VolumeRequest =
-      model.VolumeRequest.createIfNotExists(name, storageClass, mountPath)
+    def apply(name: String, storageClass: String, size: String): model.VolumeRequest =
+      model.VolumeRequest.createIfNotExists(name, storageClass, size)
   }
 
   implicit def fnToHfn[T](fn: util.Fn[T]): HFn[T] = HFn(fn.run())
