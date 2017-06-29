@@ -11,10 +11,11 @@ A library for seamlessly executing arbitrary JVM closures in [Docker] containers
 ---
 
 - [User guide](#user-guide)
-  * [Build environment images](#build-environment-images)
+  * [Dependency](#dependecy)
   * [Run functions](#run-functions)
   * [Full example](#full-example)
   * [Leveraging implicits](#leveraging-implicits)
+  * [Custom environment images](#custom-environment-images)
 - [Process overview](#process-overview)
 - [Persistent disk](#persistent-disk)
   * [GCE Persistent Disk](#gce-persistent-disk)
@@ -40,22 +41,6 @@ SBT
 ```sbt
 "com.spotify" %% "hype" % <version>
 ```
-
-## Build environment images
-
-In order for Hype to be able to execute functions in your Docker images, you'll have to install
-the `hype-run` command by adding the following to your `Dockerfile`:
-
-```dockerfile
-# Install hype-run command
-RUN /bin/sh -c "$(curl -fsSL https://goo.gl/kSogpF)"
-ENTRYPOINT ["hype-run"]
-```
-
-It is important to have exactly this `ENTRYPOINT` as the Kubernetes Pods will expect to run the
-`hype-run` command.
-
-See example [`Dockerfile`](hype-docker/Dockerfile)
 
 ## Run functions
 
@@ -195,6 +180,21 @@ operator also allows you to specify an explicit environment.
 ```scala
 val result = example("hello") #! env.withRequest("cpu", "750m")
 ```
+## Custom environment images
+
+In order for Hype to be able to execute functions in your custom Docker images, you'll have to
+install the `hype-run` command by adding the following to your `Dockerfile`:
+
+```dockerfile
+# Install hype-run command
+RUN /bin/sh -c "$(curl -fsSL https://goo.gl/kSogpF)"
+ENTRYPOINT ["hype-run"]
+```
+
+It is important to have exactly this `ENTRYPOINT` as the Kubernetes Pods will expect to run the
+`hype-run` command.
+
+See example [`Dockerfile`](hype-docker/Dockerfile)
 
 # Process overview
 
