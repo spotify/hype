@@ -33,6 +33,14 @@ you'll have dynamically scheduled resources available for your code to utilize.
 All this might sound a bit abstract, so let's run through a concrete example. We'll be using Scala
 for the examples, but all the core functionality is available from Java as well.
 
+## Dependency
+
+SBT
+
+```sbt
+"com.spotify" %% "hype" % <version>
+```
+
 ## Build environment images
 
 In order for Hype to be able to execute functions in your Docker images, you'll have to install
