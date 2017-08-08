@@ -87,6 +87,7 @@ val result = submitter.submit(example("hello"), env.withRequest("cpu", "750m"))
 
 This is a full example that runs a simple function that executes an arbitrary command and lists all
 environment variables. It uses the Scala [sys.process] package to execute commands in the function.
+Also see the [docs on how to create k8s secrets](https://kubernetes.io/docs/concepts/configuration/secret/#creating-your-own-secrets)
 
 ```scala
 import sys.process._
