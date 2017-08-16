@@ -1,5 +1,9 @@
 package com.spotify.hype
 
+import java.util.concurrent.TimeUnit
+
+import scala.concurrent.duration.Duration
+
 trait HFn[T] extends Serializable {
 
   /**

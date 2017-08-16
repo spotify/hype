@@ -22,6 +22,10 @@ package com.spotify.hype.stub;
 
 import com.spotify.hype.util.Fn;
 import com.spotify.hype.util.SerializationUtil;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.PrintStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -31,9 +35,30 @@ import java.nio.file.Paths;
  */
 public class ContinuationEntryPoint {
 
+  private static final String SYSTEM_OUT_LOG = "out.log";
+  private static final String SYSTEM_ERR_LOG = "err.log";
+
   public static void main(String[] args) throws Exception {
     if (args.length < 2) {
       throw new IllegalArgumentException("Usage: <staging-dir> <continuation-file> <output-file>");
+    }
+
+    // Setup logging to the continuation
+    try {
+      final String hypeLoggingVolume = System.getenv("HYPE_LOGGING_VOLUME");
+      if (hypeLoggingVolume != null) {
+        // Only setup the logging to the volume if the environment variable is set
+        final File sysOutLog = new File(hypeLoggingVolume + "/" + SYSTEM_OUT_LOG);
+        final FileOutputStream outFile = new FileOutputStream(sysOutLog, true);
+        final PrintStream outLog = new PrintStream(outFile);
+        final File sysErrLog = new File(hypeLoggingVolume + "/" + SYSTEM_ERR_LOG);
+        final FileOutputStream errFile = new FileOutputStream(sysErrLog, true);
+        final PrintStream errLog = new PrintStream(errFile);
+        System.setOut(new TeePrintStream(System.out, outLog));
+        System.setErr(new TeePrintStream(System.err, errLog));
+      }
+    } catch (FileNotFoundException e) {
+      throw new RuntimeException(e);
     }
 
     final Path continuationPath = Paths.get(args[0], args[1]);

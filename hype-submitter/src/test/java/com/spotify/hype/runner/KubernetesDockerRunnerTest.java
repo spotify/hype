@@ -222,7 +222,7 @@ public class KubernetesDockerRunnerTest {
 
   private Pod createPod(RunEnvironment env) {
     StagedContinuation cont = StagedContinuation.stagedContinuation(MANIFEST_PATH, MANIFEST);
-    RunSpec runSpec = RunSpec.runSpec(env, cont, "busybox:1");
+    RunSpec runSpec = RunSpec.runSpec(env, cont, "busybox:1", null);
 
     return runner.createPod(runSpec);
   }

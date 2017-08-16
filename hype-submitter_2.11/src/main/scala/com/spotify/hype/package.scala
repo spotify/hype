@@ -2,6 +2,8 @@ package com.spotify
 
 import scala.language.implicitConversions
 
+import scala.collection.JavaConverters._
+
 package object hype {
 
   object RunEnvironment {
@@ -21,6 +23,11 @@ package object hype {
   object PersistentVolume {
     def apply(name: String, storageClass: String, size: String): model.VolumeRequest =
       model.VolumeRequest.createIfNotExists(name, storageClass, size)
+  }
+
+  object LoggingSidecar {
+    def apply(image: String, args: List[String] = List()): model.LoggingSidecar =
+      model.LoggingSidecar.loggingSidecar(image, args.asJava)
   }
 
   implicit def fnToHfn[T](fn: util.Fn[T]): HFn[T] = HFn(fn.run())

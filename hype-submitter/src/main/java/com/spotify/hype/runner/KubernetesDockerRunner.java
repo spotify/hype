@@ -20,6 +20,8 @@
 
 package com.spotify.hype.runner;
 
+import static com.spotify.hype.runner.LocalDockerRunner.HYPE_LOGGING_VOLUME;
+import static com.spotify.hype.runner.LocalDockerRunner.HYPE_LOGGING_VOLUME_ENV;
 import static com.spotify.hype.util.Util.randomAlphaNumeric;
 import static java.util.Collections.singletonList;
 import static java.util.function.Function.identity;
@@ -29,6 +31,8 @@ import static java.util.stream.Collectors.toMap;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.ImmutableList;
+import com.spotify.hype.model.LoggingSidecar;
 import com.spotify.hype.model.RunEnvironment;
 import com.spotify.hype.model.Secret;
 import com.spotify.hype.model.StagedContinuation;
@@ -73,6 +77,7 @@ import java.util.concurrent.TimeUnit;
 public class KubernetesDockerRunner implements DockerRunner {
 
   static final String HYPE_RUN = "hype-run";
+  static final String HYPE_LOGGING_RUN = "hype-logging-run";
   static final String EXECUTION_ID = "HYPE_EXECUTION_ID";
 
   private static final ObjectMapper YAML_MAPPER = new ObjectMapper(new YAMLFactory());
@@ -120,6 +125,7 @@ public class KubernetesDockerRunner implements DockerRunner {
       switch (status.getPhase()) {
         case "Succeeded":
           LOG.info("Kubernetes pod {} exited with status {}", podName, status.getPhase());
+        case "Running":
 
           final Optional<ContainerStatus> containerStatus = status.getContainerStatuses().stream()
               .filter(c -> HYPE_RUN.equals(c.getName()))
@@ -215,6 +221,49 @@ public class KubernetesDockerRunner implements DockerRunner {
       resourceReqsBuilder.addToRequests(request.getKey(), new Quantity(request.getValue()));
     }
     container.setResources(resourceReqsBuilder.build());
+
+    final LoggingSidecar loggingSidecar = runSpec.loggingSidecar();
+    if (loggingSidecar != null) {
+
+      final String loggingVolumeName = HYPE_LOGGING_VOLUME_ENV.toLowerCase().replaceAll("_", "-");
+
+      final Volume loggingVolume = new VolumeBuilder()
+          .withName(loggingVolumeName)
+          .withNewEmptyDir()
+          .endEmptyDir()
+          .build();
+      spec.getVolumes().add(loggingVolume);
+
+      container.setImagePullPolicy("Always"); // todo: REMOVE ME
+      container.getEnv()
+          .add(new EnvVarBuilder()
+                   .withName(HYPE_LOGGING_VOLUME_ENV)
+                   .withValue(HYPE_LOGGING_VOLUME)
+                   .build());
+
+      container.getVolumeMounts().add(new VolumeMountBuilder()
+                                          .withName(loggingVolumeName)
+                                          .withMountPath(HYPE_LOGGING_VOLUME)
+                                          .build());
+
+      final Container loggingContainer = new ContainerBuilder()
+          .withName(HYPE_LOGGING_RUN)
+          .withImage(loggingSidecar.image())
+          .withCommand(loggingSidecar.args())
+          .addToEnv(new EnvVarBuilder()
+                        .withName(HYPE_LOGGING_VOLUME_ENV)
+                        .withValue(HYPE_LOGGING_VOLUME)
+                        .build())
+          .addToVolumeMounts(new VolumeMountBuilder()
+                                 .withName(loggingVolumeName)
+                                 .withMountPath(HYPE_LOGGING_VOLUME)
+                                 .withReadOnly(true)
+                                 .build())
+          .build();
+
+      spec.setContainers(ImmutableList.of(container, loggingContainer));
+      basePod.setSpec(spec);
+    }
 
     return basePod;
   }
