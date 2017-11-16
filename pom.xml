@@ -3,14 +3,14 @@
   <modelVersion>4.0.0</modelVersion>
   <parent>
     <groupId>com.spotify</groupId>
-    <artifactId>foss-root</artifactId>
+    <artifactId>root</artifactId>
     <version>5</version>
     <!--<artifactId>root</artifactId>-->
     <!--<version>8</version>-->
   </parent>
 
   <artifactId>hype-root</artifactId>
-  <version>0.0.18-SNAPSHOT</version>
+  <version>0.0.19-ZACFORK</version>
   <packaging>pom</packaging>
 
   <name>hype - hyper executor</name>
@@ -135,7 +135,7 @@
       <dependency>
         <groupId>com.google.guava</groupId>
         <artifactId>guava</artifactId>
-        <version>19.0</version>
+        <version>21.0</version>
       </dependency>
       <dependency>
         <groupId>com.google.auto.value</groupId>
