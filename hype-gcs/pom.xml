@@ -4,7 +4,7 @@
   <parent>
     <artifactId>hype-root</artifactId>
     <groupId>com.spotify</groupId>
-    <version>0.0.19-ZACFORK</version>
+    <version>0.0.20-ZACFORK</version>
   </parent>
 
   <artifactId>hype-gcs</artifactId>
