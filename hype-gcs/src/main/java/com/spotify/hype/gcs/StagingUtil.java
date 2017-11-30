@@ -18,6 +18,7 @@
 
 package com.spotify.hype.gcs;
 
+
 import static com.google.cloud.storage.contrib.nio.CloudStorageOptions.withMimeType;
 import static java.nio.file.StandardOpenOption.CREATE_NEW;
 import static java.nio.file.StandardOpenOption.WRITE;
@@ -37,6 +38,7 @@ import com.google.common.io.Files;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
+import com.spotify.hype.FluentBackoff;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;

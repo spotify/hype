@@ -28,7 +28,10 @@ import static java.util.stream.Collectors.toMap;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import com.google.api.client.util.BackOff;
+import com.google.api.client.util.Sleeper;
 import com.google.common.annotations.VisibleForTesting;
+import com.spotify.hype.FluentBackoff;
 import com.spotify.hype.model.RunEnvironment;
 import com.spotify.hype.model.Secret;
 import com.spotify.hype.model.StagedContinuation;
@@ -81,6 +84,9 @@ public class KubernetesDockerRunner implements DockerRunner {
   private final KubernetesClient client;
   private final VolumeRepository volumeRepository;
 
+  private static final FluentBackoff BACKOFF_FACTORY =
+      FluentBackoff.DEFAULT;
+
   KubernetesDockerRunner(KubernetesClient client, VolumeRepository volumeRepository) {
     this.client = Objects.requireNonNull(client);
     this.volumeRepository = Objects.requireNonNull(volumeRepository);
@@ -88,18 +94,37 @@ public class KubernetesDockerRunner implements DockerRunner {
 
   @Override
   public Optional<URI> run(RunSpec runSpec) {
-    try {
-      final Pod pod = client.pods().create(createPod(runSpec));
-      final String podName = pod.getMetadata().getName();
-      LOG.info("Created pod {}", podName);
+    Sleeper retrySleeper = Sleeper.DEFAULT;
+    BackOff backoff = BACKOFF_FACTORY.backoff();
 
-      Optional<URI> uri = blockUntilComplete(podName);
-      client.pods().withName(podName).delete();
-      return uri;
-    } catch (KubernetesClientException kce) {
-      throw new RuntimeException("Failed to create Kubernetes pod", kce);
-    } catch (InterruptedException e) {
-      throw new RuntimeException("Interrupted while blocking", e);
+    while (true) {
+      try {
+        final Pod pod = client.pods().create(createPod(runSpec));
+        final String podName = pod.getMetadata().getName();
+        LOG.info("Created pod {}", podName);
+
+        Optional<URI> uri = blockUntilComplete(podName);
+        client.pods().withName(podName).delete();
+        return uri;
+      } catch (KubernetesClientException kce) {
+        try {
+          long sleep = backoff.nextBackOffMillis();
+          if (sleep == BackOff.STOP) {
+            // Rethrow last error, to be included as a cause in the catch below.
+            LOG.error("Failed to create Kubernetes pod", kce);
+            throw new KubernetesClientException("Failed to create Kubernetes pod", kce);
+          } else {
+            LOG.warn("Kubernetes creation attempt failed, sleeping before retrying", kce);
+            retrySleeper.sleep(sleep);
+          }
+        } catch (IOException | InterruptedException ioe) {
+          LOG.error("Failed when trying to sleep: {}", ioe.getMessage(), ioe);
+          throw new RuntimeException(
+              String.format("Failed when trying to sleep: {}", ioe.getMessage()), ioe);
+        }
+      } catch (InterruptedException ie) {
+        throw new RuntimeException("Interrupted while blocking", ie);
+      }
     }
   }
 

@@ -16,7 +16,7 @@
  * -/-/-
  */
 
-package com.spotify.hype.gcs;
+package com.spotify.hype;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
@@ -132,7 +132,7 @@ public final class FluentBackoff {
    */
   public FluentBackoff withMaxCumulativeBackoff(Duration maxCumulativeBackoff) {
     checkArgument(maxCumulativeBackoff.isLongerThan(Duration.ZERO),
-        "maxCumulativeBackoff %s must be at least 1 millisecond", maxCumulativeBackoff);
+                                "maxCumulativeBackoff %s must be at least 1 millisecond", maxCumulativeBackoff);
     return new FluentBackoff(
         exponent, initialBackoff, maxBackoff, maxCumulativeBackoff, maxRetries);
   }
