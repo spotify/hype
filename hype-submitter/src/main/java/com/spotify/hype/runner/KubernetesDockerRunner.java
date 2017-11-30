@@ -118,9 +118,8 @@ public class KubernetesDockerRunner implements DockerRunner {
             retrySleeper.sleep(sleep);
           }
         } catch (IOException | InterruptedException ioe) {
-          LOG.error("Failed when trying to sleep: {}", ioe.getMessage(), ioe);
           throw new RuntimeException(
-              String.format("Failed when trying to sleep: {}", ioe.getMessage()), ioe);
+              String.format("Failed to create Kubernetes pod when trying to sleep: %s", ioe.getMessage()), ioe);
         }
       } catch (InterruptedException ie) {
         throw new RuntimeException("Interrupted while blocking", ie);
