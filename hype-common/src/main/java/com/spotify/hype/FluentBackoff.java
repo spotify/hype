@@ -132,7 +132,7 @@ public final class FluentBackoff {
    */
   public FluentBackoff withMaxCumulativeBackoff(Duration maxCumulativeBackoff) {
     checkArgument(maxCumulativeBackoff.isLongerThan(Duration.ZERO),
-                                "maxCumulativeBackoff %s must be at least 1 millisecond", maxCumulativeBackoff);
+        "maxCumulativeBackoff %s must be at least 1 millisecond", maxCumulativeBackoff);
     return new FluentBackoff(
         exponent, initialBackoff, maxBackoff, maxCumulativeBackoff, maxRetries);
   }

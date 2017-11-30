@@ -18,7 +18,6 @@
 
 package com.spotify.hype.gcs;
 
-
 import static com.google.cloud.storage.contrib.nio.CloudStorageOptions.withMimeType;
 import static java.nio.file.StandardOpenOption.CREATE_NEW;
 import static java.nio.file.StandardOpenOption.WRITE;
