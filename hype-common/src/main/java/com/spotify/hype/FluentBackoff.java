@@ -16,7 +16,7 @@
  * -/-/-
  */
 
-package com.spotify.hype.gcs;
+package com.spotify.hype;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
